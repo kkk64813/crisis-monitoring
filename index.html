@@ -1,0 +1,17 @@
+<button onclick="callWorker()">连线测试</button>
+<div id="result"></div>
+
+<script>
+function callWorker() {
+  fetch("https://你的-worker-网址.workers.dev")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("result").innerText =
+        "后端回应：" + data.message;
+    })
+    .catch(err => {
+      document.getElementById("result").innerText =
+        "连线失败";
+    });
+}
+</script>
