@@ -2226,6 +2226,7 @@
             updateUserIdDisplay();
             renderDeviceList();
             
+            console.log("用户ID初始化完成:", userId);
             return userId;
         }
 
@@ -3233,21 +3234,63 @@
 
         async function fetchKVStats() {
             try {
+                console.log('开始获取KV统计信息');
+                
+                // 显示加载状态
+                const refreshBtn = document.getElementById('refresh-kv-stats');
+                if (refreshBtn) {
+                    const originalHTML = refreshBtn.innerHTML;
+                    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
+                    refreshBtn.disabled = true;
+                }
+                
+                // 尝试从云端获取真实数据
                 const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}?userId=${config.userId}`
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}?userId=${config.userId}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    }
                 );
                 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('KV统计信息获取成功:', data);
                     state.kvStats = data;
                     updateKVStatsDisplay();
+                    
+                    // 更新KV数据列表
+                    renderKVDataList();
+                    
+                    showNotification('KV状态已刷新', 'success');
                     return data;
                 } else {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
                 }
             } catch (error) {
-                console.error('获取KV统计失败:', error);
-                return getMockKVStats();
+                console.error('获取KV统计失败，使用模拟数据:', error);
+                
+                // 使用模拟数据，但确保数据有效
+                const mockStats = getMockKVStats();
+                state.kvStats = mockStats;
+                updateKVStatsDisplay();
+                
+                // 更新KV数据列表
+                renderKVDataList();
+                
+                showNotification('使用模拟KV数据', 'warning');
+                return mockStats;
+            } finally {
+                // 恢复按钮状态
+                const refreshBtn = document.getElementById('refresh-kv-stats');
+                if (refreshBtn) {
+                    setTimeout(() => {
+                        refreshBtn.innerHTML = '<i class="fas fa-redo"></i> 刷新状态';
+                        refreshBtn.disabled = false;
+                    }, 1000);
+                }
             }
         }
 
@@ -3288,57 +3331,71 @@
         }
 
         function initKVChart() {
-            const ctx = document.getElementById('kvUsageChart');
-            if (!ctx) return;
-            
-            state.kvChart = new Chart(ctx.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: '存储使用量 (MB)',
-                            data: [],
-                            borderColor: 'rgb(59, 130, 246)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        },
-                        {
-                            label: '请求数/小时',
-                            data: [],
-                            borderColor: 'rgb(16, 185, 129)',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
+            try {
+                const ctx = document.getElementById('kvUsageChart');
+                if (!ctx) {
+                    console.warn('找不到kvUsageChart元素');
+                    return;
+                }
+                
+                // 如果已有图表，销毁它
+                if (state.kvChart) {
+                    state.kvChart.destroy();
+                }
+                
+                state.kvChart = new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: '存储使用量 (MB)',
+                                data: [],
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: '请求数/小时',
+                                data: [],
+                                borderColor: 'rgb(16, 185, 129)',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
                     },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '时间'
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
                             }
                         },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '数值'
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '时间'
+                                }
                             },
-                            beginAtZero: true
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '数值'
+                                },
+                                beginAtZero: true
+                            }
                         }
                     }
-                }
-            });
+                });
+                
+                console.log('KV图表初始化完成');
+            } catch (error) {
+                console.error('初始化KV图表时出错:', error);
+            }
         }
 
         function updateKVUsageChart() {
@@ -3650,20 +3707,29 @@
         async function syncToCloud() {
             try {
                 showNotification('正在同步数据到云端...', 'info');
+                console.log("同步用户ID:", config.userId);
+                console.log("历史数据量:", state.historyData.length);
                 
+                // 保存所有数据
                 await saveToCloudflare('config', config);
                 
+                // 只同步最近1000条数据，避免过大
                 const historyToSync = state.historyData.slice(-1000);
-                await saveToCloudflare('history', historyToSync);
+                console.log("要同步的历史数据量:", historyToSync.length);
                 
+                await saveToCloudflare('history', historyToSync);
                 await saveToCloudflare('nodes', config.nodes);
                 
                 showNotification('所有数据已同步到 Cloudflare!', 'success');
                 
-                updateCloudDataStatus();
+                // 记录同步时间
+                state.syncStatus.lastSyncTime = new Date().toISOString();
+                updateSyncStatusDisplay();
                 
+                updateCloudDataStatus();
                 return true;
             } catch (error) {
+                console.error("同步到云端失败:", error);
                 showNotification('同步失败: ' + error.message, 'error');
                 return false;
             }
@@ -3672,21 +3738,34 @@
         async function syncFromCloud() {
             try {
                 showNotification('正在从云端同步数据...', 'info');
+                console.log("从云端获取用户ID:", config.userId);
                 
+                // 1. 先同步配置
                 const cloudConfig = await loadFromCloudflare('config');
                 if (cloudConfig) {
-                    const mergedNodes = {...cloudConfig.nodes, ...config.nodes};
-                    cloudConfig.nodes = mergedNodes;
+                    console.log("获取到云端配置");
+                    // 合并节点配置，但不覆盖本地设置
+                    const mergedNodes = { ...cloudConfig.nodes, ...config.nodes };
+                    config.nodes = mergedNodes;
                     
+                    // 保留用户ID设置
+                    const savedUserId = config.userId;
                     Object.assign(config, cloudConfig);
+                    config.userId = savedUserId; // 保留当前用户ID
+                    
                     saveConfig();
                     showNotification('配置已从云端同步', 'success');
                 }
                 
+                // 2. 同步历史数据
                 const cloudHistory = await loadFromCloudflare('history');
                 if (cloudHistory && Array.isArray(cloudHistory)) {
+                    console.log("获取到云端历史数据:", cloudHistory.length);
+                    
                     const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
                     const newItems = cloudHistory.filter(item => !existingTimestamps.has(item.timestamp));
+                    
+                    console.log("新数据条数:", newItems.length);
                     
                     if (newItems.length > 0) {
                         state.historyData.push(...newItems);
@@ -3698,23 +3777,29 @@
                     }
                 }
                 
+                // 3. 同步节点
                 const cloudNodes = await loadFromCloudflare('nodes');
                 if (cloudNodes) {
-                    config.nodes = {...cloudNodes, ...config.nodes};
+                    config.nodes = { ...cloudNodes, ...config.nodes };
                     saveConfig();
                     showNotification('节点数据已同步', 'success');
                 }
                 
+                // 更新UI
                 updateNodeSelectOptions();
                 renderNodesList();
                 renderHistoryTable();
                 updateChart();
                 updateDataCounts();
                 
+                // 更新同步状态
+                state.syncStatus.lastSyncTime = new Date().toISOString();
+                updateSyncStatusDisplay();
                 updateCloudDataStatus();
                 
                 return true;
             } catch (error) {
+                console.error("从云端同步失败:", error);
                 showNotification('同步失败: ' + error.message, 'error');
                 return false;
             }
@@ -4214,6 +4299,77 @@
             }
         }
 
+        // ==================== 新增的KV数据列表渲染函数 ====================
+
+        function renderKVDataList() {
+            try {
+                const tbody = document.getElementById('kv-data-list');
+                if (!tbody) {
+                    console.warn('找不到kv-data-list元素');
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                
+                // 模拟KV数据
+                const kvData = [
+                    {
+                        key: `config_${config.userId}`,
+                        type: '配置',
+                        user: config.userId,
+                        size: JSON.stringify(config).length + ' 字节',
+                        lastModified: new Date().toLocaleString('zh-CN')
+                    },
+                    {
+                        key: `history_${config.userId}`,
+                        type: '历史记录',
+                        user: config.userId,
+                        size: (state.historyData.length * 100) + ' 字节',
+                        lastModified: new Date().toLocaleString('zh-CN')
+                    },
+                    {
+                        key: `nodes_${config.userId}`,
+                        type: '节点配置',
+                        user: config.userId,
+                        size: JSON.stringify(config.nodes).length + ' 字节',
+                        lastModified: new Date().toLocaleString('zh-CN')
+                    }
+                ];
+                
+                if (kvData.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">暂无KV数据</td></tr>';
+                    return;
+                }
+                
+                kvData.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.key}</td>
+                        <td>${item.type}</td>
+                        <td>${item.user}</td>
+                        <td>${item.size}</td>
+                        <td>${item.lastModified}</td>
+                        <td>
+                            <button class="secondary" onclick="viewKVData('${item.key}')" style="padding: 4px 8px; font-size: 0.9rem;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('渲染KV数据列表时出错:', error);
+                const tbody = document.getElementById('kv-data-list');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">渲染失败</td></tr>';
+                }
+            }
+        }
+
+        function viewKVData(key) {
+            alert(`KV数据详情:\n\nKey: ${key}\n用户: ${config.userId}\n类型: 配置数据`);
+        }
+
         // ==================== 事件监听器设置 ====================
 
         function setupEventListeners() {
@@ -4234,6 +4390,14 @@
                     const tabContent = document.getElementById(tabId);
                     if (tabContent) {
                         tabContent.classList.add('active');
+                    }
+                    
+                    // 如果切换到KV状态标签页，则自动刷新
+                    if (tabId === 'kv-status') {
+                        console.log('切换到KV状态标签页，自动刷新');
+                        setTimeout(() => {
+                            fetchKVStats();
+                        }, 500);
                     }
                 });
             });
@@ -4370,13 +4534,27 @@
             // 同步到云端
             const syncToCloudBtn = document.getElementById('sync-to-cloud');
             if (syncToCloudBtn) {
-                syncToCloudBtn.addEventListener('click', syncToCloud);
+                syncToCloudBtn.addEventListener('click', async () => {
+                    const success = await syncToCloud();
+                    if (success) {
+                        // 同步后立即检查状态
+                        fetchKVStats();
+                        updateSyncStatusDisplay();
+                    }
+                });
             }
             
             // 从云端同步
             const syncFromCloudBtn = document.getElementById('sync-from-cloud');
             if (syncFromCloudBtn) {
-                syncFromCloudBtn.addEventListener('click', syncFromCloud);
+                syncFromCloudBtn.addEventListener('click', async () => {
+                    const success = await syncFromCloud();
+                    if (success) {
+                        // 同步后立即检查状态
+                        fetchKVStats();
+                        updateSyncStatusDisplay();
+                    }
+                });
             }
             
             // 完整备份
@@ -4528,10 +4706,19 @@
                 });
             }
             
-            // 刷新KV状态
+            // 刷新KV状态 - 使用新的绑定方式
             const refreshKVStatsBtn = document.getElementById('refresh-kv-stats');
             if (refreshKVStatsBtn) {
-                refreshKVStatsBtn.addEventListener('click', fetchKVStats);
+                // 移除旧的事件监听器
+                const newRefreshBtn = refreshKVStatsBtn.cloneNode(true);
+                refreshKVStatsBtn.parentNode.replaceChild(newRefreshBtn, refreshKVStatsBtn);
+                
+                // 重新获取元素并绑定事件
+                const refreshedBtn = document.getElementById('refresh-kv-stats');
+                refreshedBtn.addEventListener('click', async function() {
+                    console.log('KV刷新按钮被点击');
+                    await fetchKVStats();
+                });
             }
             
             // 开始KV性能监控
