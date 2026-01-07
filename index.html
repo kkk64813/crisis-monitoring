@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
-        /* [样式代码与之前完全一样，保持不变] */
+        /* [样式代码保持不变，与原始文件相同] */
         :root {
             --primary-color: #2563eb;
             --secondary-color: #10b981;
@@ -2113,6 +2113,90 @@
             }
         }
 
+        // ==================== 时间管理函数 ====================
+
+        function updateCurrentTime() {
+            try {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('zh-CN');
+                const currentTimeElement = document.getElementById('current-time');
+                if (currentTimeElement) {
+                    currentTimeElement.textContent = timeString;
+                }
+                
+                updatePeriodDisplay(now);
+            } catch (error) {
+                console.error("更新时间时出错:", error);
+            }
+        }
+
+        function updatePeriodDisplay(now) {
+            try {
+                const hour = now.getHours();
+                let period = 'offpeak';
+                let periodName = '离峰时段';
+                let suggestion = '网络状况良好';
+                
+                if ((hour >= 8 && hour < 12) || (hour >= 14 && hour < 18)) {
+                    period = 'peak';
+                    periodName = '尖峰时段';
+                    suggestion = '网络可能繁忙，建议稍后测试';
+                } else if (hour >= 12 && hour < 14) {
+                    period = 'normal';
+                    periodName = '平峰时段';
+                    suggestion = '网络状况一般';
+                }
+                
+                const periodElement = document.getElementById('time-period');
+                if (periodElement) {
+                    periodElement.textContent = periodName;
+                    periodElement.className = `time-period-indicator ${period === 'peak' ? 'peak-period' : 'offpeak-period'}`;
+                }
+                
+                const suggestionElement = document.getElementById('period-suggestion');
+                if (suggestionElement) {
+                    suggestionElement.textContent = suggestion;
+                }
+                
+                return period;
+            } catch (error) {
+                console.error("更新时段显示时出错:", error);
+                return 'offpeak';
+            }
+        }
+
+        function updateTimerDisplays() {
+            try {
+                const now = Math.floor(Date.now() / 1000);
+                
+                if (state.nextTestTime > 0 && state.monitoringActive) {
+                    const timeLeft = state.nextTestTime - now;
+                    if (timeLeft > 0) {
+                        const minutes = Math.floor(timeLeft / 60);
+                        const seconds = timeLeft % 60;
+                        const nextTestTimerElement = document.getElementById('next-test-timer');
+                        if (nextTestTimerElement) {
+                            nextTestTimerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        }
+                    }
+                }
+                
+                if (state.nextSaveTime > 0 && state.monitoringActive) {
+                    const timeLeft = state.nextSaveTime - now;
+                    if (timeLeft > 0) {
+                        const minutes = Math.floor(timeLeft / 60);
+                        const seconds = timeLeft % 60;
+                        const nextSaveTimerElement = document.getElementById('next-save-timer');
+                        if (nextSaveTimerElement) {
+                            nextSaveTimerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("更新计时器显示时出错:", error);
+            }
+        }
+
         // ==================== 用户ID管理函数 ====================
 
         function initUserId() {
@@ -2212,9 +2296,74 @@
             }
         }
 
+        function setCustomUserId() {
+            try {
+                const customUserIdInput = document.getElementById('custom-user-id');
+                const userId = customUserIdInput.value.trim();
+                
+                if (!userId) {
+                    showNotification('请输入用户ID', 'error');
+                    return;
+                }
+                
+                config.userId = userId;
+                config.userIdType = 'custom';
+                CLOUDFLARE_CONFIG.USER_ID = userId;
+                
+                localStorage.setItem('latency_monitor_user_id', userId);
+                localStorage.setItem('latency_monitor_user_id_type', 'custom');
+                saveConfig();
+                
+                updateUserIdDisplay();
+                showNotification('自定义用户ID已设置', 'success');
+            } catch (error) {
+                console.error("设置自定义用户ID时出错:", error);
+                showNotification('设置用户ID失败: ' + error.message, 'error');
+            }
+        }
+
+        function generateRandomUserId() {
+            try {
+                const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                config.userId = userId;
+                config.userIdType = 'random';
+                CLOUDFLARE_CONFIG.USER_ID = userId;
+                
+                localStorage.setItem('latency_monitor_user_id', userId);
+                localStorage.setItem('latency_monitor_user_id_type', 'random');
+                saveConfig();
+                
+                const customUserIdInput = document.getElementById('custom-user-id');
+                if (customUserIdInput) {
+                    customUserIdInput.value = userId;
+                }
+                
+                updateUserIdDisplay();
+                showNotification('随机用户ID已生成', 'success');
+            } catch (error) {
+                console.error("生成随机用户ID时出错:", error);
+                showNotification('生成用户ID失败: ' + error.message, 'error');
+            }
+        }
+
+        function resetUserId() {
+            try {
+                if (confirm('确定要重置用户ID吗？这将清除当前的用户ID设置。')) {
+                    localStorage.removeItem('latency_monitor_user_id');
+                    localStorage.removeItem('latency_monitor_user_id_type');
+                    
+                    initUserId();
+                    updateUserIdDisplay();
+                    showNotification('用户ID已重置', 'success');
+                }
+            } catch (error) {
+                console.error("重置用户ID时出错:", error);
+                showNotification('重置用户ID失败: ' + error.message, 'error');
+            }
+        }
+
         // ==================== 数据管理函数 ====================
 
-        // 加载配置 - 修复：添加这个缺失的函数
         function loadConfig() {
             console.log("加载配置");
             try {
@@ -2249,7 +2398,6 @@
             }
         }
 
-        // 保存配置
         function saveConfig() {
             try {
                 localStorage.setItem('latencyMonitorConfig', JSON.stringify(config));
@@ -2266,7 +2414,6 @@
             }
         }
 
-        // 加载历史数据
         function loadHistoryData() {
             console.log("加载历史数据");
             try {
@@ -2284,7 +2431,6 @@
             }
         }
 
-        // 保存历史数据
         function saveHistoryData() {
             try {
                 localStorage.setItem('latencyHistory', JSON.stringify(state.historyData));
@@ -2304,7 +2450,6 @@
             }
         }
 
-        // 更新用户位置显示
         function updateUserLocationDisplay() {
             try {
                 const locationSelect = document.getElementById('user-location');
@@ -2319,7 +2464,6 @@
             }
         }
 
-        // 更新数据计数
         function updateDataCounts() {
             try {
                 const today = new Date().toDateString();
@@ -2340,9 +2484,113 @@
             }
         }
 
+        // ==================== 历史数据管理函数 ====================
+
+        function clearHistory() {
+            try {
+                if (confirm('确定要清除所有历史数据吗？此操作不可撤销。')) {
+                    state.historyData = [];
+                    saveHistoryData();
+                    renderHistoryTable();
+                    updateChart();
+                    updateDataCounts();
+                    showNotification('历史数据已清除', 'success');
+                }
+            } catch (error) {
+                console.error("清除历史数据时出错:", error);
+                showNotification('清除历史数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function renderHistoryTable() {
+            try {
+                const tbody = document.getElementById('history-data');
+                if (!tbody) return;
+                
+                const startIndex = (state.currentPage - 1) * state.pageSize;
+                const endIndex = startIndex + state.pageSize;
+                const pageData = state.historyData.slice(startIndex, endIndex);
+                
+                tbody.innerHTML = '';
+                
+                if (pageData.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">暂无历史数据</td></tr>';
+                    return;
+                }
+                
+                pageData.forEach(item => {
+                    const date = new Date(item.timestamp);
+                    const timeString = date.toLocaleString('zh-CN');
+                    const mainlandNodeName = config.nodes[item.mainlandNode]?.name || item.mainlandNode;
+                    const taiwanNodeName = config.nodes[item.taiwanNode]?.name || item.taiwanNode;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${timeString}</td>
+                        <td>${getLocationName(item.userLocation)}</td>
+                        <td>${mainlandNodeName}</td>
+                        <td><span class="${getLatencyClass(item.mainlandLatency)}">${item.mainlandLatency} ms</span></td>
+                        <td>${taiwanNodeName}</td>
+                        <td><span class="${getLatencyClass(item.taiwanLatency)}">${item.taiwanLatency} ms</span></td>
+                        <td>${item.period === 'peak' ? '尖峰' : item.period === 'normal' ? '平峰' : '离峰'}</td>
+                        <td>
+                            <button class="secondary" onclick="deleteHistoryItem('${item.timestamp}')" style="padding: 4px 8px; font-size: 0.9rem;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                updatePaginationControls();
+            } catch (error) {
+                console.error("渲染历史表格时出错:", error);
+            }
+        }
+
+        function deleteHistoryItem(timestamp) {
+            try {
+                if (confirm('确定要删除这条记录吗？')) {
+                    state.historyData = state.historyData.filter(item => item.timestamp !== timestamp);
+                    saveHistoryData();
+                    renderHistoryTable();
+                    updateChart();
+                    updateDataCounts();
+                    showNotification('记录已删除', 'success');
+                }
+            } catch (error) {
+                console.error("删除历史记录时出错:", error);
+                showNotification('删除记录失败: ' + error.message, 'error');
+            }
+        }
+
+        function prevPage() {
+            if (state.currentPage > 1) {
+                state.currentPage--;
+                renderHistoryTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(state.historyData.length / state.pageSize);
+            if (state.currentPage < totalPages) {
+                state.currentPage++;
+                renderHistoryTable();
+            }
+        }
+
+        function updatePaginationControls() {
+            const totalPages = Math.max(1, Math.ceil(state.historyData.length / state.pageSize));
+            
+            const currentPageElement = document.getElementById('current-page');
+            const totalPagesElement = document.getElementById('total-pages');
+            
+            if (currentPageElement) currentPageElement.textContent = state.currentPage;
+            if (totalPagesElement) totalPagesElement.textContent = totalPages;
+        }
+
         // ==================== 节点管理函数 ====================
 
-        // 更新节点选择下拉框
         function updateNodeSelectOptions() {
             console.log("更新节点选择下拉框");
             try {
@@ -2386,7 +2634,6 @@
             }
         }
 
-        // 渲染节点列表
         function renderNodesList() {
             try {
                 const nodesList = document.getElementById('nodes-list');
@@ -2434,7 +2681,6 @@
             }
         }
 
-        // 添加自定义节点
         function addCustomNode() {
             console.log("添加自定义节点");
             try {
@@ -2479,7 +2725,6 @@
             }
         }
 
-        // 保存节点设置
         function saveNodeSettings() {
             console.log("保存节点设置");
             try {
@@ -2499,6 +2744,339 @@
             } catch (error) {
                 console.error("保存节点设置时出错:", error);
                 showNotification('保存节点设置失败: ' + error.message, 'error');
+            }
+        }
+
+        function exportNodes() {
+            try {
+                const nodesData = JSON.stringify(config.nodes, null, 2);
+                const blob = new Blob([nodesData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `latency_nodes_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('节点列表已导出', 'success');
+            } catch (error) {
+                console.error("导出节点列表时出错:", error);
+                showNotification('导出节点列表失败: ' + error.message, 'error');
+            }
+        }
+
+        function uploadNodes() {
+            try {
+                const fileInput = document.getElementById('upload-nodes-file');
+                if (!fileInput.files.length) {
+                    showNotification('请先选择节点文件', 'error');
+                    return;
+                }
+                
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const nodesData = JSON.parse(e.target.result);
+                        config.nodes = nodesData;
+                        saveConfig();
+                        updateNodeSelectOptions();
+                        renderNodesList();
+                        showNotification('节点列表已更新', 'success');
+                        fileInput.value = '';
+                    } catch (error) {
+                        console.error("解析节点文件时出错:", error);
+                        showNotification('解析节点文件失败: ' + error.message, 'error');
+                    }
+                };
+                
+                reader.readAsText(file);
+            } catch (error) {
+                console.error("上传节点列表时出错:", error);
+                showNotification('上传节点列表失败: ' + error.message, 'error');
+            }
+        }
+
+        function resetNodes() {
+            try {
+                if (confirm('确定要重置为默认节点吗？自定义节点将会丢失。')) {
+                    config.nodes = {...defaultConfig.nodes};
+                    config.defaultNodes = {...defaultConfig.defaultNodes};
+                    saveConfig();
+                    updateNodeSelectOptions();
+                    renderNodesList();
+                    showNotification('节点已重置为默认设置', 'success');
+                }
+            } catch (error) {
+                console.error("重置节点时出错:", error);
+                showNotification('重置节点失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== 导入/导出函数 ====================
+
+        function exportJSON() {
+            try {
+                const exportData = {
+                    version: config.version,
+                    timestamp: new Date().toISOString(),
+                    userLocation: config.userLocation,
+                    userId: config.userId,
+                    history: state.historyData
+                };
+                
+                const jsonData = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `latency_data_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('数据已导出为JSON格式', 'success');
+            } catch (error) {
+                console.error("导出JSON时出错:", error);
+                showNotification('导出JSON失败: ' + error.message, 'error');
+            }
+        }
+
+        function exportCSV() {
+            try {
+                if (state.historyData.length === 0) {
+                    showNotification('没有数据可以导出', 'warning');
+                    return;
+                }
+                
+                const headers = ['时间戳', '用户位置', '大陆节点', '大陆延迟(ms)', '台湾节点', '台湾延迟(ms)', '时段'];
+                const csvRows = [headers.join(',')];
+                
+                state.historyData.forEach(item => {
+                    const row = [
+                        item.timestamp,
+                        item.userLocation,
+                        config.nodes[item.mainlandNode]?.name || item.mainlandNode,
+                        item.mainlandLatency,
+                        config.nodes[item.taiwanNode]?.name || item.taiwanNode,
+                        item.taiwanLatency,
+                        item.period
+                    ].map(val => `"${val}"`).join(',');
+                    csvRows.push(row);
+                });
+                
+                const csvData = csvRows.join('\n');
+                const blob = new Blob([csvData], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `latency_data_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('数据已导出为CSV格式', 'success');
+            } catch (error) {
+                console.error("导出CSV时出错:", error);
+                showNotification('导出CSV失败: ' + error.message, 'error');
+            }
+        }
+
+        function importData() {
+            try {
+                const fileInput = document.getElementById('import-file');
+                if (!fileInput.files.length) {
+                    showNotification('请先选择要导入的文件', 'error');
+                    return;
+                }
+                
+                const files = Array.from(fileInput.files);
+                let importedCount = 0;
+                
+                files.forEach((file, index) => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        try {
+                            let importedData;
+                            if (file.name.endsWith('.json')) {
+                                importedData = JSON.parse(e.target.result);
+                                if (importedData.history && Array.isArray(importedData.history)) {
+                                    mergeImportedData(importedData.history);
+                                    importedCount += importedData.history.length;
+                                }
+                            } else if (file.name.endsWith('.csv')) {
+                                const csvText = e.target.result;
+                                const csvData = parseCSV(csvText);
+                                mergeImportedData(csvData);
+                                importedCount += csvData.length;
+                            }
+                            
+                            if (index === files.length - 1) {
+                                showNotification(`成功导入 ${importedCount} 条记录`, 'success');
+                                fileInput.value = '';
+                            }
+                        } catch (error) {
+                            console.error(`解析文件 ${file.name} 时出错:`, error);
+                            showNotification(`解析文件 ${file.name} 失败: ` + error.message, 'error');
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            } catch (error) {
+                console.error("导入数据时出错:", error);
+                showNotification('导入数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+                const item = {};
+                
+                headers.forEach((header, index) => {
+                    item[header] = values[index];
+                });
+                
+                if (item['时间戳'] && item['大陆延迟(ms)']) {
+                    data.push({
+                        timestamp: item['时间戳'],
+                        userLocation: item['用户位置'],
+                        mainlandNode: item['大陆节点'],
+                        mainlandLatency: parseInt(item['大陆延迟(ms)']),
+                        taiwanNode: item['台湾节点'],
+                        taiwanLatency: parseInt(item['台湾延迟(ms)']),
+                        period: item['时段']
+                    });
+                }
+            }
+            
+            return data;
+        }
+
+        function mergeImportedData(importedData) {
+            try {
+                const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
+                const newItems = importedData.filter(item => !existingTimestamps.has(item.timestamp));
+                
+                if (newItems.length > 0) {
+                    state.historyData.push(...newItems);
+                    state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    saveHistoryData();
+                    renderHistoryTable();
+                    updateChart();
+                    updateDataCounts();
+                }
+            } catch (error) {
+                console.error("合并导入数据时出错:", error);
+                throw error;
+            }
+        }
+
+        function clearImport() {
+            try {
+                const fileInput = document.getElementById('import-file');
+                fileInput.value = '';
+                showNotification('已清除选择的文件', 'info');
+            } catch (error) {
+                console.error("清除导入文件时出错:", error);
+            }
+        }
+
+        // ==================== 数据分析函数 ====================
+
+        function runAnalysis() {
+            try {
+                if (state.historyData.length === 0) {
+                    showNotification('没有数据可分析', 'warning');
+                    return;
+                }
+                
+                const mainlandLatencies = state.historyData.map(item => item.mainlandLatency).filter(l => l !== null);
+                const taiwanLatencies = state.historyData.map(item => item.taiwanLatency).filter(l => l !== null);
+                
+                const avgMainland = mainlandLatencies.length > 0 ? 
+                    Math.round(mainlandLatencies.reduce((a, b) => a + b, 0) / mainlandLatencies.length) : 0;
+                const avgTaiwan = taiwanLatencies.length > 0 ? 
+                    Math.round(taiwanLatencies.reduce((a, b) => a + b, 0) / taiwanLatencies.length) : 0;
+                
+                document.getElementById('avg-latency-mainland').textContent = `${avgMainland} ms`;
+                document.getElementById('avg-latency-taiwan').textContent = `${avgTaiwan} ms`;
+                
+                const stdDevMainland = mainlandLatencies.length > 0 ? 
+                    Math.round(Math.sqrt(mainlandLatencies.reduce((sq, n) => sq + Math.pow(n - avgMainland, 2), 0) / mainlandLatencies.length)) : 0;
+                const stdDevTaiwan = taiwanLatencies.length > 0 ? 
+                    Math.round(Math.sqrt(taiwanLatencies.reduce((sq, n) => sq + Math.pow(n - avgTaiwan, 2), 0) / taiwanLatencies.length)) : 0;
+                
+                document.getElementById('std-dev-mainland').textContent = `${stdDevMainland} ms`;
+                document.getElementById('std-dev-taiwan').textContent = `${stdDevTaiwan} ms`;
+                
+                updatePeriodAnalysis();
+                updateBaselineAnalysis();
+                
+                showNotification('数据分析完成', 'success');
+            } catch (error) {
+                console.error("运行分析时出错:", error);
+                showNotification('数据分析失败: ' + error.message, 'error');
+            }
+        }
+
+        function updatePeriodAnalysis() {
+            if (!state.periodChart) return;
+            
+            try {
+                const peakData = state.historyData.filter(item => item.period === 'peak');
+                const offpeakData = state.historyData.filter(item => item.period === 'offpeak');
+                const normalData = state.historyData.filter(item => item.period === 'normal');
+                
+                const avgPeak = peakData.length > 0 ? 
+                    Math.round(peakData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / peakData.length) : 0;
+                const avgOffpeak = offpeakData.length > 0 ? 
+                    Math.round(offpeakData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / offpeakData.length) : 0;
+                const avgNormal = normalData.length > 0 ? 
+                    Math.round(normalData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / normalData.length) : 0;
+                
+                state.periodChart.data.datasets[0].data = [avgPeak, avgOffpeak, avgNormal];
+                state.periodChart.update();
+            } catch (error) {
+                console.error("更新时段分析时出错:", error);
+            }
+        }
+
+        function updateBaselineAnalysis() {
+            try {
+                const mainlandLatencies = state.historyData.map(item => item.mainlandLatency).filter(l => l !== null);
+                const taiwanLatencies = state.historyData.map(item => item.taiwanLatency).filter(l => l !== null);
+                
+                if (mainlandLatencies.length === 0 || taiwanLatencies.length === 0) return;
+                
+                const avgLatency = (mainlandLatencies.reduce((a, b) => a + b, 0) / mainlandLatencies.length + 
+                                   taiwanLatencies.reduce((a, b) => a + b, 0) / taiwanLatencies.length) / 2;
+                
+                const peakBaseline = Math.round(avgLatency * 1.3);
+                const offpeakBaseline = Math.round(avgLatency * 0.8);
+                const normalRange = Math.round(avgLatency * 0.2);
+                
+                document.getElementById('peak-baseline').textContent = `${peakBaseline} ms`;
+                document.getElementById('offpeak-baseline').textContent = `${offpeakBaseline} ms`;
+                document.getElementById('normal-range').textContent = `±${normalRange} ms`;
+                
+                const anomalyCount = state.historyData.filter(item => 
+                    item.mainlandLatency > peakBaseline * 1.5 || item.taiwanLatency > peakBaseline * 1.5
+                ).length;
+                
+                document.getElementById('anomaly-count').textContent = anomalyCount;
+            } catch (error) {
+                console.error("更新基准分析时出错:", error);
             }
         }
 
@@ -2877,6 +3455,13 @@
             });
         }
 
+        function viewSyncDetails(id) {
+            const record = state.syncHistory.find(r => r.id === id);
+            if (record) {
+                alert(`同步详情:\n\n操作: ${record.operation}\n状态: ${record.status}\n数据量: ${record.dataCount}\n耗时: ${record.duration}ms\n时间: ${new Date(record.timestamp).toLocaleString('zh-CN')}\n详情: ${record.details || '无'}`);
+            }
+        }
+
         // ==================== 增强的同步函数 ====================
 
         async function performFullSync() {
@@ -2935,7 +3520,7 @@
             try {
                 showNotification('正在测试 Cloudflare 连接...', 'info');
                 
-                const response = await fetch(CLOUDFLARE_CONFIG.WORKER_URL + CLOUDFLARE_CONFIG.ENDPOINTS.TEST || CLOUDFLARE_CONFIG.WORKER_URL, {
+                const response = await fetch(CLOUDFLARE_CONFIG.WORKER_URL + (CLOUDFLARE_CONFIG.ENDPOINTS.TEST || '/'), {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -3174,12 +3759,467 @@
             }
         }
 
+        function saveUserId() {
+            try {
+                const userIdInput = document.getElementById('cloudflare-user-id');
+                const userId = userIdInput.value.trim();
+                
+                if (!userId) {
+                    showNotification('请输入用户ID', 'error');
+                    return;
+                }
+                
+                config.userId = userId;
+                config.userIdType = 'custom';
+                CLOUDFLARE_CONFIG.USER_ID = userId;
+                
+                localStorage.setItem('latency_monitor_user_id', userId);
+                localStorage.setItem('latency_monitor_user_id_type', 'custom');
+                saveConfig();
+                
+                updateUserIdDisplay();
+                showNotification('用户ID已保存', 'success');
+            } catch (error) {
+                console.error("保存用户ID时出错:", error);
+                showNotification('保存用户ID失败: ' + error.message, 'error');
+            }
+        }
+
+        function generateNewUserId() {
+            try {
+                const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const userIdInput = document.getElementById('cloudflare-user-id');
+                userIdInput.value = userId;
+                
+                config.userId = userId;
+                config.userIdType = 'random';
+                CLOUDFLARE_CONFIG.USER_ID = userId;
+                
+                localStorage.setItem('latency_monitor_user_id', userId);
+                localStorage.setItem('latency_monitor_user_id_type', 'random');
+                saveConfig();
+                
+                updateUserIdDisplay();
+                showNotification('新用户ID已生成', 'success');
+            } catch (error) {
+                console.error("生成新用户ID时出错:", error);
+                showNotification('生成用户ID失败: ' + error.message, 'error');
+            }
+        }
+
+        function backupAllData() {
+            try {
+                const backupData = {
+                    config: config,
+                    history: state.historyData,
+                    nodes: config.nodes,
+                    timestamp: new Date().toISOString(),
+                    version: config.version
+                };
+                
+                const jsonData = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `latency_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('完整备份已导出', 'success');
+            } catch (error) {
+                console.error("备份数据时出错:", error);
+                showNotification('备份数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function restoreFromBackup() {
+            try {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = function(e) {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        try {
+                            const backupData = JSON.parse(e.target.result);
+                            
+                            if (confirm('确定要恢复备份吗？当前数据将被覆盖。')) {
+                                if (backupData.config) {
+                                    Object.assign(config, backupData.config);
+                                }
+                                
+                                if (backupData.history) {
+                                    state.historyData = backupData.history;
+                                }
+                                
+                                if (backupData.nodes) {
+                                    config.nodes = backupData.nodes;
+                                }
+                                
+                                saveConfig();
+                                saveHistoryData();
+                                updateNodeSelectOptions();
+                                renderNodesList();
+                                renderHistoryTable();
+                                updateChart();
+                                updateDataCounts();
+                                updateUserIdDisplay();
+                                
+                                showNotification('备份已恢复', 'success');
+                            }
+                        } catch (error) {
+                            console.error("恢复备份时出错:", error);
+                            showNotification('恢复备份失败: ' + error.message, 'error');
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                };
+                
+                input.click();
+            } catch (error) {
+                console.error("恢复备份时出错:", error);
+                showNotification('恢复备份失败: ' + error.message, 'error');
+            }
+        }
+
+        function clearCloudData() {
+            try {
+                if (confirm('确定要清除云端数据吗？此操作不可撤销。')) {
+                    showNotification('云端数据清除功能需在Cloudflare Worker中实现', 'info');
+                }
+            } catch (error) {
+                console.error("清除云端数据时出错:", error);
+                showNotification('清除云端数据失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== 用户数据管理函数 ====================
+
+        function updateUserDataStats() {
+            try {
+                document.getElementById('total-data-points').textContent = state.historyData.length;
+                
+                if (state.historyData.length > 0) {
+                    const allLatencies = state.historyData.flatMap(item => [item.mainlandLatency, item.taiwanLatency]).filter(l => l !== null);
+                    const avgLatency = Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length);
+                    document.getElementById('avg-latency-all').textContent = `${avgLatency} ms`;
+                    
+                    const dataCoverage = Math.min(100, Math.round((state.historyData.length / 1000) * 100));
+                    document.getElementById('data-coverage').textContent = `${dataCoverage}%`;
+                }
+            } catch (error) {
+                console.error("更新用户数据统计时出错:", error);
+            }
+        }
+
+        function mergeUserData() {
+            try {
+                const mergeUserIdInput = document.getElementById('merge-user-id');
+                const mergeUserId = mergeUserIdInput.value.trim();
+                
+                if (!mergeUserId) {
+                    showNotification('请输入要合并的用户ID', 'error');
+                    return;
+                }
+                
+                showNotification(`模拟合并用户 ${mergeUserId} 的数据...`, 'info');
+                
+                setTimeout(() => {
+                    const mockData = generateMockUserData(mergeUserId);
+                    const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
+                    const newItems = mockData.filter(item => !existingTimestamps.has(item.timestamp));
+                    
+                    if (newItems.length > 0) {
+                        state.historyData.push(...newItems);
+                        state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        saveHistoryData();
+                        renderHistoryTable();
+                        updateChart();
+                        updateDataCounts();
+                        showNotification(`已合并 ${newItems.length} 条来自用户 ${mergeUserId} 的数据`, 'success');
+                    } else {
+                        showNotification('没有新的数据可以合并', 'info');
+                    }
+                }, 1500);
+            } catch (error) {
+                console.error("合并用户数据时出错:", error);
+                showNotification('合并用户数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function generateMockUserData(userId) {
+            const data = [];
+            const now = new Date();
+            
+            for (let i = 0; i < 50; i++) {
+                const timestamp = new Date(now.getTime() - i * 3600000).toISOString();
+                data.push({
+                    timestamp,
+                    userLocation: ['beijing', 'shanghai', 'taipei', 'kaohsiung'][Math.floor(Math.random() * 4)],
+                    mainlandNode: 'cn_bj_cloud',
+                    mainlandLatency: Math.floor(Math.random() * 100) + 30,
+                    taiwanNode: 'tw_nchc',
+                    taiwanLatency: Math.floor(Math.random() * 120) + 40,
+                    period: Math.random() > 0.7 ? 'peak' : Math.random() > 0.5 ? 'normal' : 'offpeak'
+                });
+            }
+            
+            return data;
+        }
+
+        function compareUserData() {
+            try {
+                const mergeUserIdInput = document.getElementById('merge-user-id');
+                const compareUserId = mergeUserIdInput.value.trim();
+                
+                if (!compareUserId) {
+                    showNotification('请输入要比较的用户ID', 'error');
+                    return;
+                }
+                
+                showNotification(`正在比较用户数据: ${config.userId} vs ${compareUserId}`, 'info');
+                
+                setTimeout(() => {
+                    const mockData = generateMockUserData(compareUserId);
+                    
+                    const currentAvg = state.historyData.length > 0 ? 
+                        Math.round(state.historyData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / state.historyData.length) : 0;
+                    
+                    const compareAvg = mockData.length > 0 ? 
+                        Math.round(mockData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / mockData.length) : 0;
+                    
+                    const comparison = `
+                        用户数据对比结果:
+                        
+                        当前用户 (${config.userId}):
+                        - 数据点数: ${state.historyData.length}
+                        - 平均延迟: ${currentAvg} ms
+                        
+                        对比用户 (${compareUserId}):
+                        - 数据点数: ${mockData.length}
+                        - 平均延迟: ${compareAvg} ms
+                        
+                        对比结果: ${currentAvg < compareAvg ? '当前用户网络质量更好' : currentAvg > compareAvg ? '对比用户网络质量更好' : '网络质量相当'}
+                    `;
+                    
+                    alert(comparison);
+                }, 1500);
+            } catch (error) {
+                console.error("比较用户数据时出错:", error);
+                showNotification('比较用户数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function exportUserData() {
+            try {
+                const userData = {
+                    userId: config.userId,
+                    userLocation: config.userLocation,
+                    devices: config.devices,
+                    config: config,
+                    history: state.historyData,
+                    nodes: config.nodes,
+                    timestamp: new Date().toISOString(),
+                    version: config.version
+                };
+                
+                const jsonData = JSON.stringify(userData, null, 2);
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `latency_user_${config.userId}_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('用户数据已导出', 'success');
+            } catch (error) {
+                console.error("导出用户数据时出错:", error);
+                showNotification('导出用户数据失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== KV管理函数 ====================
+
+        function kvBackupAll() {
+            try {
+                showNotification('KV备份功能需要服务器端支持', 'info');
+            } catch (error) {
+                console.error("KV备份时出错:", error);
+                showNotification('KV备份失败: ' + error.message, 'error');
+            }
+        }
+
+        function kvCleanupOld() {
+            try {
+                if (confirm('确定要清理旧数据吗？此操作可能会删除30天前的数据。')) {
+                    showNotification('正在清理旧数据...', 'info');
+                    
+                    setTimeout(() => {
+                        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                        const initialCount = state.historyData.length;
+                        state.historyData = state.historyData.filter(item => new Date(item.timestamp) > thirtyDaysAgo);
+                        
+                        saveHistoryData();
+                        renderHistoryTable();
+                        updateChart();
+                        updateDataCounts();
+                        
+                        const removedCount = initialCount - state.historyData.length;
+                        showNotification(`已清理 ${removedCount} 条旧数据`, 'success');
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error("清理旧数据时出错:", error);
+                showNotification('清理旧数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function kvExportStats() {
+            try {
+                const statsData = state.kvStats || getMockKVStats();
+                const jsonData = JSON.stringify(statsData, null, 2);
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `kv_stats_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('KV统计已导出', 'success');
+            } catch (error) {
+                console.error("导出KV统计时出错:", error);
+                showNotification('导出KV统计失败: ' + error.message, 'error');
+            }
+        }
+
+        function kvHealthCheck() {
+            try {
+                showNotification('正在进行KV健康检查...', 'info');
+                
+                setTimeout(() => {
+                    const stats = state.kvStats || getMockKVStats();
+                    
+                    let healthStatus = '健康';
+                    let healthColor = 'var(--secondary-color)';
+                    
+                    if (stats.successRate < 90) {
+                        healthStatus = '警告';
+                        healthColor = 'var(--warning-color)';
+                    }
+                    
+                    if (stats.successRate < 80) {
+                        healthStatus = '危险';
+                        healthColor = 'var(--danger-color)';
+                    }
+                    
+                    const healthReport = `
+                        KV健康检查报告:
+                        
+                        存储使用率: ${Math.min(100, (stats.storageUsed / stats.storageLimit) * 100).toFixed(1)}%
+                        读取延迟: ${stats.readLatency} ms
+                        写入延迟: ${stats.writeLatency} ms
+                        操作成功率: ${stats.successRate}%
+                        请求频率: ${stats.hourlyRequests}/小时
+                        
+                        健康状态: ${healthStatus}
+                        
+                        建议: ${stats.successRate < 90 ? '建议检查网络连接和KV配置' : '运行状况良好'}
+                    `;
+                    
+                    alert(healthReport);
+                }, 1500);
+            } catch (error) {
+                console.error("KV健康检查时出错:", error);
+                showNotification('KV健康检查失败: ' + error.message, 'error');
+            }
+        }
+
+        function kvSearch() {
+            try {
+                const searchUser = document.getElementById('kv-search-user').value.trim();
+                const searchDate = document.getElementById('kv-search-date').value;
+                
+                if (!searchUser && !searchDate) {
+                    showNotification('请输入搜索条件', 'error');
+                    return;
+                }
+                
+                showNotification('正在搜索数据...', 'info');
+                
+                setTimeout(() => {
+                    let filteredData = state.historyData;
+                    
+                    if (searchUser) {
+                        filteredData = filteredData.filter(item => 
+                            item.userLocation.includes(searchUser) || 
+                            config.nodes[item.mainlandNode]?.name.includes(searchUser) ||
+                            config.nodes[item.taiwanNode]?.name.includes(searchUser)
+                        );
+                    }
+                    
+                    if (searchDate) {
+                        const searchDateObj = new Date(searchDate);
+                        filteredData = filteredData.filter(item => {
+                            const itemDate = new Date(item.timestamp);
+                            return itemDate.toDateString() === searchDateObj.toDateString();
+                        });
+                    }
+                    
+                    const tbody = document.getElementById('kv-data-list');
+                    tbody.innerHTML = '';
+                    
+                    if (filteredData.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">未找到匹配的数据</td></tr>';
+                    } else {
+                        filteredData.slice(0, 10).forEach(item => {
+                            const date = new Date(item.timestamp);
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${item.timestamp}</td>
+                                <td>历史记录</td>
+                                <td>${config.userId}</td>
+                                <td>${JSON.stringify(item).length} 字节</td>
+                                <td>${date.toLocaleString('zh-CN')}</td>
+                                <td>
+                                    <button class="secondary" onclick="viewDataItem('${item.timestamp}')" style="padding: 4px 8px; font-size: 0.9rem;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+                    
+                    showNotification(`找到 ${filteredData.length} 条匹配的数据`, 'success');
+                }, 1500);
+            } catch (error) {
+                console.error("搜索数据时出错:", error);
+                showNotification('搜索数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function viewDataItem(timestamp) {
+            const item = state.historyData.find(i => i.timestamp === timestamp);
+            if (item) {
+                alert(`数据详情:\n\n${JSON.stringify(item, null, 2)}`);
+            }
+        }
+
         // ==================== 事件监听器设置 ====================
 
         function setupEventListeners() {
             console.log("开始设置事件监听器");
             
-            // 标签切换 - 修复：确保页签按钮可用
+            // 标签切换
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -3349,12 +4389,6 @@
             const restoreBackupBtn = document.getElementById('restore-backup');
             if (restoreBackupBtn) {
                 restoreBackupBtn.addEventListener('click', restoreFromBackup);
-            }
-            
-            // 清除云端数据
-            const clearCloudDataBtn = document.getElementById('clear-cloud-data');
-            if (clearCloudDataBtn) {
-                clearCloudDataBtn.addEventListener('click', clearCloudData);
             }
             
             // ==================== 用户ID管理事件监听器 ====================
@@ -3528,12 +4562,37 @@
                 });
             }
             
+            // KV管理工具
+            const kvBackupAllBtn = document.getElementById('kv-backup-all');
+            if (kvBackupAllBtn) {
+                kvBackupAllBtn.addEventListener('click', kvBackupAll);
+            }
+            
+            const kvCleanupOldBtn = document.getElementById('kv-cleanup-old');
+            if (kvCleanupOldBtn) {
+                kvCleanupOldBtn.addEventListener('click', kvCleanupOld);
+            }
+            
+            const kvExportStatsBtn = document.getElementById('kv-export-stats');
+            if (kvExportStatsBtn) {
+                kvExportStatsBtn.addEventListener('click', kvExportStats);
+            }
+            
+            const kvHealthCheckBtn = document.getElementById('kv-health-check');
+            if (kvHealthCheckBtn) {
+                kvHealthCheckBtn.addEventListener('click', kvHealthCheck);
+            }
+            
+            const kvSearchBtn = document.getElementById('kv-search');
+            if (kvSearchBtn) {
+                kvSearchBtn.addEventListener('click', kvSearch);
+            }
+            
             console.log("所有事件监听器设置完成");
         }
 
-        // ==================== 其他缺失的函数 - 简化为基本实现 ====================
+        // ==================== 监控相关函数 ====================
 
-        // 保存用户位置
         function saveUserLocation() {
             console.log("保存用户位置");
             try {
@@ -3559,7 +4618,6 @@
             }
         }
 
-        // 开始监控
         function startMonitoring() {
             console.log("开始监控");
             try {
@@ -3597,7 +4655,6 @@
             }
         }
 
-        // 停止监控
         function stopMonitoring() {
             console.log("停止监控");
             try {
@@ -3636,7 +4693,6 @@
             }
         }
 
-        // 安排下次测试
         function scheduleNextTest() {
             if (!state.monitoringActive) return;
             
@@ -3652,7 +4708,6 @@
             }, config.testInterval * 1000);
         }
 
-        // 安排下次保存
         function scheduleNextSave() {
             if (!state.monitoringActive) return;
             
@@ -3668,7 +4723,6 @@
             }, config.saveInterval * 1000);
         }
 
-        // 执行网络测试
         async function performTest(onlyRegion = false) {
             console.log("执行网络测试，区域限制:", onlyRegion);
             if (!config.userLocation) {
@@ -3718,7 +4772,6 @@
             }
         }
 
-        // 测试节点延迟
         async function testNodeLatency(node) {
             if (!node) return null;
             
@@ -3786,7 +4839,6 @@
             });
         }
 
-        // 保存测试结果
         function saveTestResult(mainlandLatency, taiwanLatency) {
             try {
                 const now = new Date();
@@ -3821,13 +4873,11 @@
             }
         }
 
-        // 自动保存数据
         function autoSaveData() {
             saveHistoryData();
             showNotification('数据已自动保存', 'info');
         }
 
-        // 更新当前延迟显示
         function updateCurrentLatencyDisplay(mainlandLatency, taiwanLatency) {
             try {
                 if (mainlandLatency !== null) {
@@ -3852,7 +4902,6 @@
             }
         }
 
-        // 更新网络质量显示
         function updateNetworkQuality(mainlandLatency, taiwanLatency) {
             try {
                 let quality = '未知';
@@ -3886,7 +4935,6 @@
             }
         }
 
-        // 更新最近测试表格
         function updateRecentTestsTable(mainlandLatency, taiwanLatency) {
             try {
                 const tbody = document.getElementById('recent-tests');
@@ -3924,7 +4972,8 @@
             }
         }
 
-        // 初始化图表
+        // ==================== 图表函数 ====================
+
         function initCharts() {
             console.log("初始化图表");
             try {
@@ -4041,7 +5090,6 @@
             }
         }
 
-        // 更新图表
         function updateChart() {
             if (!state.chart) return;
             
