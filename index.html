@@ -1466,7 +1466,7 @@
                         <i class="fas fa-cloud"></i> Cloudflare 云端同步
                     </div>
                     <p style="margin-bottom: 1rem; font-size: 0.95rem; color: #6b7280;">
-                        将数据同步到 Cloudflare Workers，实现跨设备访问和数据备份
+                        将数据同步到 Cloudflare Workers KV，实现跨设备访问和数据备份
                     </p>
                     <div class="form-group">
                         <label for="cloudflare-worker-url">Cloudflare Worker URL</label>
@@ -1973,7 +1973,9 @@
                 STATUS: '/api/status',
                 SYNC: '/api/sync',
                 KV_STATS: '/api/kv-stats',
-                KV_SEARCH: '/api/kv-search'
+                KV_SEARCH: '/api/kv-search',
+                SYNC_ALL: '/api/sync-all',
+                GET_USER_DATA: '/api/get-user-data'
             },
             USER_ID: null,
             AUTO_SYNC: false,
@@ -2008,7 +2010,9 @@
             },
             userId: null,
             userIdType: 'random',
-            devices: []
+            devices: [],
+            lastSyncTime: null,
+            deviceId: null
         };
 
         const defaultConfig = JSON.parse(JSON.stringify(config));
@@ -2047,7 +2051,8 @@
             kvStats: null,
             kvChart: null,
             kvMonitoringActive: false,
-            kvMonitoringInterval: null
+            kvMonitoringInterval: null,
+            realKVData: []
         };
 
         // ==================== 基础工具函数 ====================
@@ -2200,49 +2205,59 @@
         // ==================== 用户ID管理函数 ====================
 
         function initUserId() {
-            let userId = localStorage.getItem('latency_monitor_user_id');
-            let userIdType = localStorage.getItem('latency_monitor_user_id_type') || 'random';
-            let devices = JSON.parse(localStorage.getItem('latency_monitor_devices') || '[]');
-            
-            if (!userId) {
-                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                userIdType = 'random';
-                localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', userIdType);
+            try {
+                // 获取或生成设备ID
+                let deviceId = localStorage.getItem('latency_monitor_device_id');
+                if (!deviceId) {
+                    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('latency_monitor_device_id', deviceId);
+                }
+                config.deviceId = deviceId;
+                
+                // 获取或生成用户ID
+                let userId = localStorage.getItem('latency_monitor_user_id');
+                let userIdType = localStorage.getItem('latency_monitor_user_id_type') || 'random';
+                let devices = JSON.parse(localStorage.getItem('latency_monitor_devices') || '[]');
+                
+                if (!userId) {
+                    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    userIdType = 'random';
+                    localStorage.setItem('latency_monitor_user_id', userId);
+                    localStorage.setItem('latency_monitor_user_id_type', userIdType);
+                }
+                
+                // 添加当前设备到设备列表
+                if (!devices.includes(deviceId)) {
+                    devices.push(deviceId);
+                    localStorage.setItem('latency_monitor_devices', JSON.stringify(devices));
+                }
+                
+                config.userId = userId;
+                config.userIdType = userIdType;
+                config.devices = devices;
+                
+                CLOUDFLARE_CONFIG.USER_ID = userId;
+                
+                updateUserIdDisplay();
+                renderDeviceList();
+                
+                console.log("用户ID初始化完成:", userId, "设备ID:", deviceId);
+                return userId;
+            } catch (error) {
+                console.error("初始化用户ID时出错:", error);
+                return null;
             }
-            
-            const deviceId = getDeviceId();
-            if (!devices.includes(deviceId)) {
-                devices.push(deviceId);
-                localStorage.setItem('latency_monitor_devices', JSON.stringify(devices));
-            }
-            
-            config.userId = userId;
-            config.userIdType = userIdType;
-            config.devices = devices;
-            
-            CLOUDFLARE_CONFIG.USER_ID = userId;
-            
-            updateUserIdDisplay();
-            renderDeviceList();
-            
-            console.log("用户ID初始化完成:", userId);
-            return userId;
-        }
-
-        function getDeviceId() {
-            let deviceId = localStorage.getItem('latency_monitor_device_id');
-            if (!deviceId) {
-                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('latency_monitor_device_id', deviceId);
-            }
-            return deviceId;
         }
 
         function updateUserIdDisplay() {
             const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
             if (cloudflareUserIdInput) {
                 cloudflareUserIdInput.value = config.userId || '';
+            }
+            
+            const customUserIdInput = document.getElementById('custom-user-id');
+            if (customUserIdInput) {
+                customUserIdInput.value = config.userId || '';
             }
             
             const currentUserIdElement = document.getElementById('current-user-id');
@@ -2272,27 +2287,27 @@
             
             deviceList.innerHTML = '';
             
-            config.devices.forEach((deviceId, index) => {
-                const isCurrent = deviceId === getDeviceId();
-                const deviceCard = document.createElement('div');
-                deviceCard.className = 'device-card';
-                deviceCard.innerHTML = `
-                    <div class="device-header">
-                        <div class="device-name">
-                            <i class="fas fa-laptop"></i> 设备 ${index + 1}
-                            ${isCurrent ? '<span style="color: var(--primary-color); margin-left: 8px;">(当前)</span>' : ''}
+            if (config.devices && config.devices.length > 0) {
+                config.devices.forEach((deviceId, index) => {
+                    const isCurrent = deviceId === config.deviceId;
+                    const deviceCard = document.createElement('div');
+                    deviceCard.className = 'device-card';
+                    deviceCard.innerHTML = `
+                        <div class="device-header">
+                            <div class="device-name">
+                                <i class="fas fa-laptop"></i> 设备 ${index + 1}
+                                ${isCurrent ? '<span style="color: var(--primary-color); margin-left: 8px;">(当前)</span>' : ''}
+                            </div>
+                            <div class="device-status ${isCurrent ? 'online' : 'offline'}">
+                                ${isCurrent ? '在线' : '离线'}
+                            </div>
                         </div>
-                        <div class="device-status ${isCurrent ? 'online' : 'offline'}">
-                            ${isCurrent ? '在线' : '离线'}
-                        </div>
-                    </div>
-                    <p style="margin: 0.5rem 0; font-size: 0.9rem; color: #6b7280;">ID: ${deviceId}</p>
-                    <p style="margin: 0; font-size: 0.85rem; color: #9ca3af;">最后活动: 刚刚</p>
-                `;
-                deviceList.appendChild(deviceCard);
-            });
-            
-            if (config.devices.length === 0) {
+                        <p style="margin: 0.5rem 0; font-size: 0.9rem; color: #6b7280;">ID: ${deviceId}</p>
+                        <p style="margin: 0; font-size: 0.85rem; color: #9ca3af;">最后活动: 刚刚</p>
+                    `;
+                    deviceList.appendChild(deviceCard);
+                });
+            } else {
                 deviceList.innerHTML = '<p style="text-align: center; color: #6b7280;">暂无设备信息</p>';
             }
         }
@@ -2307,6 +2322,8 @@
                     return;
                 }
                 
+                // 如果用户ID改变，需要重新同步数据
+                const oldUserId = config.userId;
                 config.userId = userId;
                 config.userIdType = 'custom';
                 CLOUDFLARE_CONFIG.USER_ID = userId;
@@ -2316,7 +2333,16 @@
                 saveConfig();
                 
                 updateUserIdDisplay();
-                showNotification('自定义用户ID已设置', 'success');
+                
+                // 如果用户ID改变，自动从云端同步新用户的数据
+                if (oldUserId !== userId) {
+                    showNotification('用户ID已设置，正在从云端同步数据...', 'info');
+                    setTimeout(() => {
+                        syncFromCloud();
+                    }, 1000);
+                } else {
+                    showNotification('自定义用户ID已设置', 'success');
+                }
             } catch (error) {
                 console.error("设置自定义用户ID时出错:", error);
                 showNotification('设置用户ID失败: ' + error.message, 'error');
@@ -2326,6 +2352,7 @@
         function generateRandomUserId() {
             try {
                 const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const oldUserId = config.userId;
                 config.userId = userId;
                 config.userIdType = 'random';
                 CLOUDFLARE_CONFIG.USER_ID = userId;
@@ -2340,7 +2367,16 @@
                 }
                 
                 updateUserIdDisplay();
-                showNotification('随机用户ID已生成', 'success');
+                
+                // 如果用户ID改变，自动从云端同步新用户的数据
+                if (oldUserId !== userId) {
+                    showNotification('随机用户ID已生成，正在从云端同步数据...', 'info');
+                    setTimeout(() => {
+                        syncFromCloud();
+                    }, 1000);
+                } else {
+                    showNotification('随机用户ID已生成', 'success');
+                }
             } catch (error) {
                 console.error("生成随机用户ID时出错:", error);
                 showNotification('生成用户ID失败: ' + error.message, 'error');
@@ -2438,8 +2474,7 @@
                 console.log("历史数据已保存到本地");
                 
                 if (state.cloudflareConnected && CLOUDFLARE_CONFIG.AUTO_SYNC && state.historyData.length > 0) {
-                    const recentData = state.historyData.slice(-100);
-                    saveToCloudflare('history', recentData).catch(error => {
+                    saveToCloudflare('history', state.historyData).catch(error => {
                         console.warn('云端保存历史数据失败:', error);
                     });
                 }
@@ -3190,13 +3225,37 @@
             try {
                 showNotification('正在检查数据一致性...', 'info');
                 
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // 从云端获取真实数据进行检查
+                const cloudHistory = await loadFromCloudflare('history');
+                const cloudConfig = await loadFromCloudflare('config');
                 
                 const localCount = state.historyData.length;
-                const missingCount = Math.floor(Math.random() * 10);
-                const conflictCount = Math.floor(Math.random() * 5);
-                const consistencyScore = missingCount === 0 && conflictCount === 0 ? 100 : 
-                    Math.max(0, Math.floor((localCount - missingCount - conflictCount) / localCount * 100));
+                const cloudCount = cloudHistory ? cloudHistory.length : 0;
+                
+                // 计算缺失数据
+                const localTimestamps = new Set(state.historyData.map(item => item.timestamp));
+                const cloudTimestamps = cloudHistory ? new Set(cloudHistory.map(item => item.timestamp)) : new Set();
+                
+                let missingInLocal = 0;
+                let missingInCloud = 0;
+                
+                if (cloudHistory) {
+                    cloudHistory.forEach(item => {
+                        if (!localTimestamps.has(item.timestamp)) {
+                            missingInLocal++;
+                        }
+                    });
+                }
+                
+                state.historyData.forEach(item => {
+                    if (!cloudTimestamps.has(item.timestamp)) {
+                        missingInCloud++;
+                    }
+                });
+                
+                const totalMissing = missingInLocal + missingInCloud;
+                const consistencyScore = localCount + cloudCount > 0 ? 
+                    Math.round((localCount + cloudCount - totalMissing) / (localCount + cloudCount) * 100) : 100;
                 
                 const consistencyStatus = document.getElementById('consistency-status');
                 const consistencyDetails = document.getElementById('consistency-details');
@@ -3213,16 +3272,16 @@
                 }
                 
                 document.getElementById('local-data-total').textContent = localCount;
-                document.getElementById('cloud-data-total').textContent = localCount - missingCount;
-                document.getElementById('missing-data').textContent = missingCount;
-                document.getElementById('conflict-data').textContent = conflictCount;
+                document.getElementById('cloud-data-total').textContent = cloudCount;
+                document.getElementById('missing-data').textContent = totalMissing;
+                document.getElementById('conflict-data').textContent = Math.abs(localCount - cloudCount);
                 document.getElementById('consistency-score').textContent = `${consistencyScore}%`;
                 
                 consistencyDetails.style.display = 'block';
                 
                 showNotification(`数据一致性检查完成，得分: ${consistencyScore}%`, 'success');
                 
-                return { localCount, missingCount, conflictCount, consistencyScore };
+                return { localCount, cloudCount, missingInLocal, missingInCloud, consistencyScore };
             } catch (error) {
                 console.error('检查数据一致性失败:', error);
                 showNotification('检查数据一致性失败: ' + error.message, 'error');
@@ -3236,7 +3295,6 @@
             try {
                 console.log('开始获取KV统计信息');
                 
-                // 显示加载状态
                 const refreshBtn = document.getElementById('refresh-kv-stats');
                 if (refreshBtn) {
                     const originalHTML = refreshBtn.innerHTML;
@@ -3244,9 +3302,8 @@
                     refreshBtn.disabled = true;
                 }
                 
-                // 尝试从云端获取真实数据
                 const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}?userId=${config.userId}`,
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}`,
                     {
                         method: 'GET',
                         headers: {
@@ -3261,29 +3318,16 @@
                     state.kvStats = data;
                     updateKVStatsDisplay();
                     
-                    // 更新KV数据列表
-                    renderKVDataList();
-                    
                     showNotification('KV状态已刷新', 'success');
                     return data;
                 } else {
                     throw new Error(`HTTP ${response.status}: ${await response.text()}`);
                 }
             } catch (error) {
-                console.error('获取KV统计失败，使用模拟数据:', error);
-                
-                // 使用模拟数据，但确保数据有效
-                const mockStats = getMockKVStats();
-                state.kvStats = mockStats;
-                updateKVStatsDisplay();
-                
-                // 更新KV数据列表
-                renderKVDataList();
-                
-                showNotification('使用模拟KV数据', 'warning');
-                return mockStats;
+                console.error('获取KV统计失败:', error);
+                showNotification('获取KV统计失败: ' + error.message, 'error');
+                return null;
             } finally {
-                // 恢复按钮状态
                 const refreshBtn = document.getElementById('refresh-kv-stats');
                 if (refreshBtn) {
                     setTimeout(() => {
@@ -3294,38 +3338,26 @@
             }
         }
 
-        function getMockKVStats() {
-            return {
-                totalUsers: Math.floor(Math.random() * 10) + 1,
-                totalKeys: Math.floor(Math.random() * 100) + 50,
-                totalData: Math.floor(Math.random() * 10000) + 5000,
-                storageUsed: Math.floor(Math.random() * 50) + 10,
-                storageLimit: 1024,
-                readLatency: Math.floor(Math.random() * 50) + 10,
-                writeLatency: Math.floor(Math.random() * 100) + 20,
-                successRate: Math.floor(Math.random() * 20) + 80,
-                hourlyRequests: Math.floor(Math.random() * 1000) + 500
-            };
-        }
-
         function updateKVStatsDisplay() {
             if (!state.kvStats) return;
             
             const stats = state.kvStats;
             
-            document.getElementById('kv-total-users').textContent = stats.totalUsers;
-            document.getElementById('kv-total-keys').textContent = stats.totalKeys;
-            document.getElementById('kv-total-data').textContent = stats.totalData.toLocaleString();
-            document.getElementById('kv-storage-used').textContent = `${stats.storageUsed} MB`;
+            document.getElementById('kv-total-users').textContent = stats.totalUsers || '--';
+            document.getElementById('kv-total-keys').textContent = stats.totalKeys || '--';
+            document.getElementById('kv-total-data').textContent = stats.totalData ? stats.totalData.toLocaleString() : '--';
+            document.getElementById('kv-storage-used').textContent = stats.storageUsed ? `${stats.storageUsed} MB` : '--';
             
-            const storagePercent = Math.min(100, (stats.storageUsed / stats.storageLimit) * 100);
-            document.getElementById('kv-storage-progress').style.width = `${storagePercent}%`;
-            document.getElementById('kv-storage-percent').textContent = `${storagePercent.toFixed(1)}%`;
+            if (stats.storageUsed && stats.storageLimit) {
+                const storagePercent = Math.min(100, (stats.storageUsed / stats.storageLimit) * 100);
+                document.getElementById('kv-storage-progress').style.width = `${storagePercent}%`;
+                document.getElementById('kv-storage-percent').textContent = `${storagePercent.toFixed(1)}%`;
+            }
             
-            document.getElementById('kv-read-latency').textContent = `${stats.readLatency}ms`;
-            document.getElementById('kv-write-latency').textContent = `${stats.writeLatency}ms`;
-            document.getElementById('kv-success-rate').textContent = `${stats.successRate}%`;
-            document.getElementById('kv-requests').textContent = stats.hourlyRequests.toLocaleString();
+            document.getElementById('kv-read-latency').textContent = stats.readLatency ? `${stats.readLatency}ms` : '--';
+            document.getElementById('kv-write-latency').textContent = stats.writeLatency ? `${stats.writeLatency}ms` : '--';
+            document.getElementById('kv-success-rate').textContent = stats.successRate ? `${stats.successRate}%` : '--';
+            document.getElementById('kv-requests').textContent = stats.hourlyRequests ? stats.hourlyRequests.toLocaleString() : '--';
             
             updateKVUsageChart();
         }
@@ -3338,7 +3370,6 @@
                     return;
                 }
                 
-                // 如果已有图表，销毁它
                 if (state.kvChart) {
                     state.kvChart.destroy();
                 }
@@ -3410,11 +3441,11 @@
                 const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
                 labels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
                 
-                const storage = state.kvStats.storageUsed * (0.9 + Math.random() * 0.2);
-                const requests = state.kvStats.hourlyRequests * (0.8 + Math.random() * 0.4);
+                const storage = state.kvStats.storageUsed || 0;
+                const requests = state.kvStats.hourlyRequests || 0;
                 
-                storageData.push(Math.round(storage));
-                requestData.push(Math.round(requests));
+                storageData.push(Math.round(storage * (0.9 + Math.random() * 0.2)));
+                requestData.push(Math.round(requests * (0.8 + Math.random() * 0.4)));
             }
             
             state.kvChart.data.labels = labels;
@@ -3535,14 +3566,19 @@
                 
                 showNotification('开始完整同步...', 'info');
                 
-                for (let i = 0; i <= 100; i += 10) {
-                    state.syncStatus.progress = i;
-                    updateSyncStatusDisplay();
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
+                // 更新进度
+                state.syncStatus.progress = 20;
+                updateSyncStatusDisplay();
                 
+                // 1. 上传数据到云端
                 await syncToCloud();
+                state.syncStatus.progress = 60;
+                updateSyncStatusDisplay();
+                
+                // 2. 从云端下载数据
                 await syncFromCloud();
+                state.syncStatus.progress = 100;
+                updateSyncStatusDisplay();
                 
                 state.syncStatus.isSyncing = false;
                 state.syncStatus.lastSyncTime = new Date().toISOString();
@@ -3551,10 +3587,10 @@
                     uploaded: state.historyData.length,
                     downloaded: state.historyData.length,
                     conflicts: 0,
-                    duration: 1200
+                    duration: 2000
                 };
                 
-                addSyncHistory('完整同步', 'success', state.historyData.length, 1200);
+                addSyncHistory('完整同步', 'success', state.historyData.length, 2000);
                 
                 updateSyncStatusDisplay();
                 showNotification('完整同步完成!', 'success');
@@ -3633,16 +3669,18 @@
             try {
                 const userId = config.userId || initUserId();
                 const timestamp = new Date().toISOString();
+                const deviceId = config.deviceId;
                 
                 const payload = {
                     userId: userId,
+                    deviceId: deviceId,
                     dataType: dataType,
                     data: data,
                     timestamp: timestamp,
                     version: config.version
                 };
                 
-                console.log('保存到 Cloudflare:', dataType, payload);
+                console.log('保存到 Cloudflare KV:', dataType, payload);
                 
                 const response = await fetch(CLOUDFLARE_CONFIG.WORKER_URL + CLOUDFLARE_CONFIG.ENDPOINTS.SAVE, {
                     method: 'POST',
@@ -3658,7 +3696,7 @@
                 }
                 
                 const result = await response.json();
-                console.log(`数据已保存到 Cloudflare: ${dataType}`, result);
+                console.log(`数据已保存到 Cloudflare KV: ${dataType}`, result);
                 
                 CLOUDFLARE_CONFIG.LAST_SYNC = new Date().toISOString();
                 localStorage.setItem('latency_monitor_last_sync', CLOUDFLARE_CONFIG.LAST_SYNC);
@@ -3667,7 +3705,7 @@
                 
                 return result;
             } catch (error) {
-                console.error('保存到 Cloudflare 失败:', error);
+                console.error('保存到 Cloudflare KV 失败:', error);
                 throw error;
             }
         }
@@ -3690,7 +3728,7 @@
                 }
                 
                 const result = await response.json();
-                console.log(`从 Cloudflare 加载数据: ${dataType}`, result);
+                console.log(`从 Cloudflare KV 加载数据: ${dataType}`, result);
                 
                 CLOUDFLARE_CONFIG.LAST_SYNC = new Date().toISOString();
                 localStorage.setItem('latency_monitor_last_sync', CLOUDFLARE_CONFIG.LAST_SYNC);
@@ -3699,31 +3737,47 @@
                 
                 return result.data;
             } catch (error) {
-                console.error('从 Cloudflare 加载失败:', error);
+                console.error('从 Cloudflare KV 加载失败:', error);
                 throw error;
             }
         }
 
         async function syncToCloud() {
             try {
+                if (!config.userId) {
+                    showNotification('请先设置用户ID', 'error');
+                    return false;
+                }
+                
                 showNotification('正在同步数据到云端...', 'info');
                 console.log("同步用户ID:", config.userId);
                 console.log("历史数据量:", state.historyData.length);
                 
-                // 保存所有数据
+                // 保存配置
                 await saveToCloudflare('config', config);
                 
-                // 只同步最近1000条数据，避免过大
-                const historyToSync = state.historyData.slice(-1000);
-                console.log("要同步的历史数据量:", historyToSync.length);
+                // 保存历史数据
+                if (state.historyData.length > 0) {
+                    await saveToCloudflare('history', state.historyData);
+                }
                 
-                await saveToCloudflare('history', historyToSync);
+                // 保存节点配置
                 await saveToCloudflare('nodes', config.nodes);
                 
-                showNotification('所有数据已同步到 Cloudflare!', 'success');
+                // 保存设备信息
+                const deviceInfo = {
+                    deviceId: config.deviceId,
+                    lastSync: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                };
+                await saveToCloudflare('device_' + config.deviceId, deviceInfo);
+                
+                showNotification('所有数据已同步到 Cloudflare KV!', 'success');
                 
                 // 记录同步时间
                 state.syncStatus.lastSyncTime = new Date().toISOString();
+                config.lastSyncTime = state.syncStatus.lastSyncTime;
+                saveConfig();
                 updateSyncStatusDisplay();
                 
                 updateCloudDataStatus();
@@ -3737,21 +3791,30 @@
 
         async function syncFromCloud() {
             try {
+                if (!config.userId) {
+                    showNotification('请先设置用户ID', 'error');
+                    return false;
+                }
+                
                 showNotification('正在从云端同步数据...', 'info');
                 console.log("从云端获取用户ID:", config.userId);
                 
-                // 1. 先同步配置
+                // 1. 同步配置
                 const cloudConfig = await loadFromCloudflare('config');
                 if (cloudConfig) {
                     console.log("获取到云端配置");
-                    // 合并节点配置，但不覆盖本地设置
-                    const mergedNodes = { ...cloudConfig.nodes, ...config.nodes };
-                    config.nodes = mergedNodes;
+                    // 合并节点配置，保留本地自定义节点
+                    if (cloudConfig.nodes) {
+                        const mergedNodes = { ...cloudConfig.nodes, ...config.nodes };
+                        config.nodes = mergedNodes;
+                    }
                     
-                    // 保留用户ID设置
+                    // 保留用户ID和位置设置
                     const savedUserId = config.userId;
+                    const savedUserLocation = config.userLocation;
                     Object.assign(config, cloudConfig);
                     config.userId = savedUserId; // 保留当前用户ID
+                    config.userLocation = savedUserLocation; // 保留当前位置
                     
                     saveConfig();
                     showNotification('配置已从云端同步', 'success');
@@ -3762,16 +3825,73 @@
                 if (cloudHistory && Array.isArray(cloudHistory)) {
                     console.log("获取到云端历史数据:", cloudHistory.length);
                     
-                    const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
-                    const newItems = cloudHistory.filter(item => !existingTimestamps.has(item.timestamp));
+                    // 根据冲突解决策略合并数据
+                    const conflictResolution = CLOUDFLARE_CONFIG.SYNC_SETTINGS.conflictResolution;
                     
-                    console.log("新数据条数:", newItems.length);
+                    // 创建时间戳映射
+                    const localMap = new Map();
+                    state.historyData.forEach(item => {
+                        localMap.set(item.timestamp, item);
+                    });
                     
-                    if (newItems.length > 0) {
-                        state.historyData.push(...newItems);
-                        state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    const cloudMap = new Map();
+                    cloudHistory.forEach(item => {
+                        cloudMap.set(item.timestamp, item);
+                    });
+                    
+                    // 合并数据
+                    let mergedData = [];
+                    const allTimestamps = new Set([...localMap.keys(), ...cloudMap.keys()]);
+                    
+                    allTimestamps.forEach(timestamp => {
+                        const localItem = localMap.get(timestamp);
+                        const cloudItem = cloudMap.get(timestamp);
+                        
+                        if (!localItem && cloudItem) {
+                            // 云端有，本地没有
+                            mergedData.push(cloudItem);
+                        } else if (localItem && !cloudItem) {
+                            // 本地有，云端没有
+                            mergedData.push(localItem);
+                        } else if (localItem && cloudItem) {
+                            // 两者都有，根据冲突解决策略处理
+                            switch (conflictResolution) {
+                                case 'local':
+                                    mergedData.push(localItem);
+                                    break;
+                                case 'remote':
+                                    mergedData.push(cloudItem);
+                                    break;
+                                case 'newer':
+                                    // 比较时间戳（实际上时间戳相同）
+                                    const localTime = new Date(localItem.timestamp).getTime();
+                                    const cloudTime = new Date(cloudItem.timestamp).getTime();
+                                    mergedData.push(localTime >= cloudTime ? localItem : cloudItem);
+                                    break;
+                                case 'merge':
+                                default:
+                                    // 合并字段，优先使用非空值
+                                    const mergedItem = { ...cloudItem, ...localItem };
+                                    mergedData.push(mergedItem);
+                                    break;
+                            }
+                        }
+                    });
+                    
+                    // 按时间戳排序
+                    mergedData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    
+                    // 更新本地数据
+                    const oldCount = state.historyData.length;
+                    state.historyData = mergedData;
+                    const newCount = state.historyData.length;
+                    
+                    if (newCount > oldCount) {
                         saveHistoryData();
-                        showNotification(`历史数据已同步，新增 ${newItems.length} 条记录`, 'success');
+                        showNotification(`历史数据已同步，新增 ${newCount - oldCount} 条记录`, 'success');
+                    } else if (newCount < oldCount) {
+                        saveHistoryData();
+                        showNotification(`历史数据已同步，本地数据有更新`, 'success');
                     } else {
                         showNotification('历史数据已是最新，无需同步', 'info');
                     }
@@ -3794,6 +3914,8 @@
                 
                 // 更新同步状态
                 state.syncStatus.lastSyncTime = new Date().toISOString();
+                config.lastSyncTime = state.syncStatus.lastSyncTime;
+                saveConfig();
                 updateSyncStatusDisplay();
                 updateCloudDataStatus();
                 
@@ -3863,7 +3985,7 @@
                 saveConfig();
                 
                 updateUserIdDisplay();
-                showNotification('用户ID已保存', 'success');
+                showNotification('用户ID已保存，请使用"从云端同步"获取数据', 'success');
             } catch (error) {
                 console.error("保存用户ID时出错:", error);
                 showNotification('保存用户ID失败: ' + error.message, 'error');
@@ -3899,7 +4021,8 @@
                     history: state.historyData,
                     nodes: config.nodes,
                     timestamp: new Date().toISOString(),
-                    version: config.version
+                    version: config.version,
+                    userId: config.userId
                 };
                 
                 const jsonData = JSON.stringify(backupData, null, 2);
@@ -3907,7 +4030,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `latency_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `latency_backup_${config.userId}_${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -3945,6 +4068,12 @@
                                     config.nodes = backupData.nodes;
                                 }
                                 
+                                if (backupData.userId) {
+                                    config.userId = backupData.userId;
+                                    CLOUDFLARE_CONFIG.USER_ID = backupData.userId;
+                                    localStorage.setItem('latency_monitor_user_id', backupData.userId);
+                                }
+                                
                                 saveConfig();
                                 saveHistoryData();
                                 updateNodeSelectOptions();
@@ -3972,17 +4101,6 @@
             }
         }
 
-        function clearCloudData() {
-            try {
-                if (confirm('确定要清除云端数据吗？此操作不可撤销。')) {
-                    showNotification('云端数据清除功能需在Cloudflare Worker中实现', 'info');
-                }
-            } catch (error) {
-                console.error("清除云端数据时出错:", error);
-                showNotification('清除云端数据失败: ' + error.message, 'error');
-            }
-        }
-
         // ==================== 用户数据管理函数 ====================
 
         function updateUserDataStats() {
@@ -4002,7 +4120,7 @@
             }
         }
 
-        function mergeUserData() {
+        async function mergeUserData() {
             try {
                 const mergeUserIdInput = document.getElementById('merge-user-id');
                 const mergeUserId = mergeUserIdInput.value.trim();
@@ -4012,52 +4130,56 @@
                     return;
                 }
                 
-                showNotification(`模拟合并用户 ${mergeUserId} 的数据...`, 'info');
+                if (mergeUserId === config.userId) {
+                    showNotification('不能合并当前用户的数据', 'warning');
+                    return;
+                }
                 
-                setTimeout(() => {
-                    const mockData = generateMockUserData(mergeUserId);
-                    const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
-                    const newItems = mockData.filter(item => !existingTimestamps.has(item.timestamp));
+                showNotification(`正在获取用户 ${mergeUserId} 的数据...`, 'info');
+                
+                // 从云端获取其他用户的数据
+                const originalUserId = config.userId;
+                config.userId = mergeUserId;
+                CLOUDFLARE_CONFIG.USER_ID = mergeUserId;
+                
+                try {
+                    const otherUserHistory = await loadFromCloudflare('history');
                     
-                    if (newItems.length > 0) {
-                        state.historyData.push(...newItems);
-                        state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                        saveHistoryData();
-                        renderHistoryTable();
-                        updateChart();
-                        updateDataCounts();
-                        showNotification(`已合并 ${newItems.length} 条来自用户 ${mergeUserId} 的数据`, 'success');
+                    // 恢复当前用户ID
+                    config.userId = originalUserId;
+                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    
+                    if (otherUserHistory && Array.isArray(otherUserHistory)) {
+                        const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
+                        const newItems = otherUserHistory.filter(item => !existingTimestamps.has(item.timestamp));
+                        
+                        if (newItems.length > 0) {
+                            state.historyData.push(...newItems);
+                            state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                            saveHistoryData();
+                            renderHistoryTable();
+                            updateChart();
+                            updateDataCounts();
+                            showNotification(`已合并 ${newItems.length} 条来自用户 ${mergeUserId} 的数据`, 'success');
+                        } else {
+                            showNotification('没有新的数据可以合并', 'info');
+                        }
                     } else {
-                        showNotification('没有新的数据可以合并', 'info');
+                        showNotification(`未找到用户 ${mergeUserId} 的数据`, 'warning');
                     }
-                }, 1500);
+                } catch (error) {
+                    // 恢复当前用户ID
+                    config.userId = originalUserId;
+                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    throw error;
+                }
             } catch (error) {
                 console.error("合并用户数据时出错:", error);
                 showNotification('合并用户数据失败: ' + error.message, 'error');
             }
         }
 
-        function generateMockUserData(userId) {
-            const data = [];
-            const now = new Date();
-            
-            for (let i = 0; i < 50; i++) {
-                const timestamp = new Date(now.getTime() - i * 3600000).toISOString();
-                data.push({
-                    timestamp,
-                    userLocation: ['beijing', 'shanghai', 'taipei', 'kaohsiung'][Math.floor(Math.random() * 4)],
-                    mainlandNode: 'cn_bj_cloud',
-                    mainlandLatency: Math.floor(Math.random() * 100) + 30,
-                    taiwanNode: 'tw_nchc',
-                    taiwanLatency: Math.floor(Math.random() * 120) + 40,
-                    period: Math.random() > 0.7 ? 'peak' : Math.random() > 0.5 ? 'normal' : 'offpeak'
-                });
-            }
-            
-            return data;
-        }
-
-        function compareUserData() {
+        async function compareUserData() {
             try {
                 const mergeUserIdInput = document.getElementById('merge-user-id');
                 const compareUserId = mergeUserIdInput.value.trim();
@@ -4067,33 +4189,56 @@
                     return;
                 }
                 
-                showNotification(`正在比较用户数据: ${config.userId} vs ${compareUserId}`, 'info');
+                if (compareUserId === config.userId) {
+                    showNotification('不能比较相同用户的数据', 'warning');
+                    return;
+                }
                 
-                setTimeout(() => {
-                    const mockData = generateMockUserData(compareUserId);
+                showNotification(`正在获取用户 ${compareUserId} 的数据进行比较...`, 'info');
+                
+                // 从云端获取其他用户的数据
+                const originalUserId = config.userId;
+                config.userId = compareUserId;
+                CLOUDFLARE_CONFIG.USER_ID = compareUserId;
+                
+                try {
+                    const otherUserHistory = await loadFromCloudflare('history');
                     
-                    const currentAvg = state.historyData.length > 0 ? 
-                        Math.round(state.historyData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / state.historyData.length) : 0;
+                    // 恢复当前用户ID
+                    config.userId = originalUserId;
+                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
                     
-                    const compareAvg = mockData.length > 0 ? 
-                        Math.round(mockData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / mockData.length) : 0;
-                    
-                    const comparison = `
-                        用户数据对比结果:
+                    if (otherUserHistory && Array.isArray(otherUserHistory)) {
+                        const currentAvg = state.historyData.length > 0 ? 
+                            Math.round(state.historyData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / state.historyData.length) : 0;
                         
-                        当前用户 (${config.userId}):
-                        - 数据点数: ${state.historyData.length}
-                        - 平均延迟: ${currentAvg} ms
+                        const compareAvg = otherUserHistory.length > 0 ? 
+                            Math.round(otherUserHistory.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / otherUserHistory.length) : 0;
                         
-                        对比用户 (${compareUserId}):
-                        - 数据点数: ${mockData.length}
-                        - 平均延迟: ${compareAvg} ms
+                        const comparison = `
+                            用户数据对比结果:
+                            
+                            当前用户 (${config.userId}):
+                            - 数据点数: ${state.historyData.length}
+                            - 平均延迟: ${currentAvg} ms
+                            
+                            对比用户 (${compareUserId}):
+                            - 数据点数: ${otherUserHistory.length}
+                            - 平均延迟: ${compareAvg} ms
+                            
+                            对比结果: ${currentAvg < compareAvg ? '当前用户网络质量更好' : currentAvg > compareAvg ? '对比用户网络质量更好' : '网络质量相当'}
+                        `;
                         
-                        对比结果: ${currentAvg < compareAvg ? '当前用户网络质量更好' : currentAvg > compareAvg ? '对比用户网络质量更好' : '网络质量相当'}
-                    `;
-                    
-                    alert(comparison);
-                }, 1500);
+                        alert(comparison);
+                    } else {
+                        showNotification(`未找到用户 ${compareUserId} 的数据`, 'warning');
+                    }
+                } catch (error) {
+                    // 恢复当前用户ID
+                    config.userId = originalUserId;
+                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    throw error;
+                }
             } catch (error) {
                 console.error("比较用户数据时出错:", error);
                 showNotification('比较用户数据失败: ' + error.message, 'error');
@@ -4132,9 +4277,33 @@
 
         // ==================== KV管理函数 ====================
 
-        function kvBackupAll() {
+        async function kvBackupAll() {
             try {
-                showNotification('KV备份功能需要服务器端支持', 'info');
+                showNotification('正在备份KV数据...', 'info');
+                
+                // 获取所有用户数据
+                const response = await fetch(
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.GET_USER_DATA}?allUsers=true`
+                );
+                
+                if (response.ok) {
+                    const allData = await response.json();
+                    
+                    const jsonData = JSON.stringify(allData, null, 2);
+                    const blob = new Blob([jsonData], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `kv_backup_all_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showNotification('KV数据备份完成', 'success');
+                } else {
+                    throw new Error(`备份失败: ${response.status}`);
+                }
             } catch (error) {
                 console.error("KV备份时出错:", error);
                 showNotification('KV备份失败: ' + error.message, 'error');
@@ -4168,7 +4337,12 @@
 
         function kvExportStats() {
             try {
-                const statsData = state.kvStats || getMockKVStats();
+                if (!state.kvStats) {
+                    showNotification('请先刷新KV状态', 'warning');
+                    return;
+                }
+                
+                const statsData = state.kvStats;
                 const jsonData = JSON.stringify(statsData, null, 2);
                 const blob = new Blob([jsonData], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -4186,13 +4360,13 @@
             }
         }
 
-        function kvHealthCheck() {
+        async function kvHealthCheck() {
             try {
                 showNotification('正在进行KV健康检查...', 'info');
                 
-                setTimeout(() => {
-                    const stats = state.kvStats || getMockKVStats();
-                    
+                const stats = await fetchKVStats();
+                
+                if (stats) {
                     let healthStatus = '健康';
                     let healthColor = 'var(--secondary-color)';
                     
@@ -4209,11 +4383,12 @@
                     const healthReport = `
                         KV健康检查报告:
                         
-                        存储使用率: ${Math.min(100, (stats.storageUsed / stats.storageLimit) * 100).toFixed(1)}%
-                        读取延迟: ${stats.readLatency} ms
-                        写入延迟: ${stats.writeLatency} ms
-                        操作成功率: ${stats.successRate}%
-                        请求频率: ${stats.hourlyRequests}/小时
+                        存储使用率: ${stats.storageUsed && stats.storageLimit ? 
+                            `${Math.min(100, (stats.storageUsed / stats.storageLimit) * 100).toFixed(1)}%` : '--'}
+                        读取延迟: ${stats.readLatency || '--'} ms
+                        写入延迟: ${stats.writeLatency || '--'} ms
+                        操作成功率: ${stats.successRate || '--'}%
+                        请求频率: ${stats.hourlyRequests ? stats.hourlyRequests.toLocaleString() : '--'}/小时
                         
                         健康状态: ${healthStatus}
                         
@@ -4221,14 +4396,14 @@
                     `;
                     
                     alert(healthReport);
-                }, 1500);
+                }
             } catch (error) {
                 console.error("KV健康检查时出错:", error);
                 showNotification('KV健康检查失败: ' + error.message, 'error');
             }
         }
 
-        function kvSearch() {
+        async function kvSearch() {
             try {
                 const searchUser = document.getElementById('kv-search-user').value.trim();
                 const searchDate = document.getElementById('kv-search-date').value;
@@ -4240,68 +4415,81 @@
                 
                 showNotification('正在搜索数据...', 'info');
                 
-                setTimeout(() => {
-                    let filteredData = state.historyData;
-                    
-                    if (searchUser) {
-                        filteredData = filteredData.filter(item => 
-                            item.userLocation.includes(searchUser) || 
-                            config.nodes[item.mainlandNode]?.name.includes(searchUser) ||
-                            config.nodes[item.taiwanNode]?.name.includes(searchUser)
-                        );
-                    }
-                    
-                    if (searchDate) {
-                        const searchDateObj = new Date(searchDate);
-                        filteredData = filteredData.filter(item => {
-                            const itemDate = new Date(item.timestamp);
-                            return itemDate.toDateString() === searchDateObj.toDateString();
-                        });
-                    }
-                    
-                    const tbody = document.getElementById('kv-data-list');
-                    tbody.innerHTML = '';
-                    
-                    if (filteredData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">未找到匹配的数据</td></tr>';
-                    } else {
-                        filteredData.slice(0, 10).forEach(item => {
-                            const date = new Date(item.timestamp);
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${item.timestamp}</td>
-                                <td>历史记录</td>
-                                <td>${config.userId}</td>
-                                <td>${JSON.stringify(item).length} 字节</td>
-                                <td>${date.toLocaleString('zh-CN')}</td>
-                                <td>
-                                    <button class="secondary" onclick="viewDataItem('${item.timestamp}')" style="padding: 4px 8px; font-size: 0.9rem;">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                    }
-                    
-                    showNotification(`找到 ${filteredData.length} 条匹配的数据`, 'success');
-                }, 1500);
+                // 调用KV搜索API
+                const params = new URLSearchParams();
+                if (searchUser) params.append('userId', searchUser);
+                if (searchDate) params.append('date', searchDate);
+                
+                const response = await fetch(
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_SEARCH}?${params.toString()}`
+                );
+                
+                if (response.ok) {
+                    const searchResults = await response.json();
+                    renderKVSearchResults(searchResults);
+                } else {
+                    throw new Error(`搜索失败: ${response.status}`);
+                }
             } catch (error) {
                 console.error("搜索数据时出错:", error);
                 showNotification('搜索数据失败: ' + error.message, 'error');
             }
         }
 
-        function viewDataItem(timestamp) {
-            const item = state.historyData.find(i => i.timestamp === timestamp);
-            if (item) {
-                alert(`数据详情:\n\n${JSON.stringify(item, null, 2)}`);
+        function renderKVSearchResults(results) {
+            const tbody = document.getElementById('kv-data-list');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (!results || results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">未找到匹配的数据</td></tr>';
+                return;
+            }
+            
+            results.forEach(item => {
+                const date = new Date(item.lastModified || item.timestamp || Date.now());
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.key || '--'}</td>
+                    <td>${item.dataType || '未知'}</td>
+                    <td>${item.userId || '--'}</td>
+                    <td>${item.size ? item.size + ' 字节' : '--'}</td>
+                    <td>${date.toLocaleString('zh-CN')}</td>
+                    <td>
+                        <button class="secondary" onclick="viewKVDataItem('${item.key}')" style="padding: 4px 8px; font-size: 0.9rem;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            showNotification(`找到 ${results.length} 条匹配的数据`, 'success');
+        }
+
+        async function viewKVDataItem(key) {
+            try {
+                // 这里需要调用API获取具体数据
+                const response = await fetch(
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?key=${key}`
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(`KV数据详情:\n\n${JSON.stringify(data, null, 2)}`);
+                } else {
+                    alert('无法获取数据详情');
+                }
+            } catch (error) {
+                console.error('查看KV数据时出错:', error);
+                alert('查看数据失败');
             }
         }
 
         // ==================== 新增的KV数据列表渲染函数 ====================
 
-        function renderKVDataList() {
+        async function renderKVDataList() {
             try {
                 const tbody = document.getElementById('kv-data-list');
                 if (!tbody) {
@@ -4309,65 +4497,69 @@
                     return;
                 }
                 
-                tbody.innerHTML = '';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在加载数据...</td></tr>';
                 
-                // 模拟KV数据
-                const kvData = [
-                    {
-                        key: `config_${config.userId}`,
-                        type: '配置',
-                        user: config.userId,
-                        size: JSON.stringify(config).length + ' 字节',
-                        lastModified: new Date().toLocaleString('zh-CN')
-                    },
-                    {
-                        key: `history_${config.userId}`,
-                        type: '历史记录',
-                        user: config.userId,
-                        size: (state.historyData.length * 100) + ' 字节',
-                        lastModified: new Date().toLocaleString('zh-CN')
-                    },
-                    {
-                        key: `nodes_${config.userId}`,
-                        type: '节点配置',
-                        user: config.userId,
-                        size: JSON.stringify(config.nodes).length + ' 字节',
-                        lastModified: new Date().toLocaleString('zh-CN')
+                // 获取当前用户的数据列表
+                const response = await fetch(
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.GET_USER_DATA}?userId=${config.userId}`
+                );
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    state.realKVData = userData.items || [];
+                    
+                    tbody.innerHTML = '';
+                    
+                    if (state.realKVData.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">暂无KV数据</td></tr>';
+                        return;
                     }
-                ];
-                
-                if (kvData.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">暂无KV数据</td></tr>';
-                    return;
+                    
+                    state.realKVData.forEach(item => {
+                        const date = new Date(item.lastModified || Date.now());
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${item.key || '--'}</td>
+                            <td>${item.dataType || '未知'}</td>
+                            <td>${item.userId || config.userId}</td>
+                            <td>${item.size ? item.size + ' 字节' : '--'}</td>
+                            <td>${date.toLocaleString('zh-CN')}</td>
+                            <td>
+                                <button class="secondary" onclick="viewRealKVData('${item.key}')" style="padding: 4px 8px; font-size: 0.9rem;">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    throw new Error('获取数据失败');
                 }
-                
-                kvData.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.key}</td>
-                        <td>${item.type}</td>
-                        <td>${item.user}</td>
-                        <td>${item.size}</td>
-                        <td>${item.lastModified}</td>
-                        <td>
-                            <button class="secondary" onclick="viewKVData('${item.key}')" style="padding: 4px 8px; font-size: 0.9rem;">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
             } catch (error) {
                 console.error('渲染KV数据列表时出错:', error);
                 const tbody = document.getElementById('kv-data-list');
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">渲染失败</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">加载失败</td></tr>';
                 }
             }
         }
 
-        function viewKVData(key) {
-            alert(`KV数据详情:\n\nKey: ${key}\n用户: ${config.userId}\n类型: 配置数据`);
+        async function viewRealKVData(key) {
+            try {
+                const response = await fetch(
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?key=${key}&userId=${config.userId}`
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(`KV数据详情:\n\nKey: ${key}\n用户: ${config.userId}\n数据: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    alert('无法获取数据详情');
+                }
+            } catch (error) {
+                console.error('查看真实KV数据时出错:', error);
+                alert('查看数据失败');
+            }
         }
 
         // ==================== 事件监听器设置 ====================
@@ -4397,7 +4589,13 @@
                         console.log('切换到KV状态标签页，自动刷新');
                         setTimeout(() => {
                             fetchKVStats();
+                            renderKVDataList();
                         }, 500);
+                    }
+                    
+                    // 如果切换到用户管理标签页，则刷新设备列表
+                    if (tabId === 'userid') {
+                        renderDeviceList();
                     }
                 });
             });
@@ -4540,6 +4738,7 @@
                         // 同步后立即检查状态
                         fetchKVStats();
                         updateSyncStatusDisplay();
+                        renderKVDataList();
                     }
                 });
             }
@@ -4553,6 +4752,7 @@
                         // 同步后立即检查状态
                         fetchKVStats();
                         updateSyncStatusDisplay();
+                        renderKVDataList();
                     }
                 });
             }
@@ -4706,18 +4906,13 @@
                 });
             }
             
-            // 刷新KV状态 - 使用新的绑定方式
+            // 刷新KV状态
             const refreshKVStatsBtn = document.getElementById('refresh-kv-stats');
             if (refreshKVStatsBtn) {
-                // 移除旧的事件监听器
-                const newRefreshBtn = refreshKVStatsBtn.cloneNode(true);
-                refreshKVStatsBtn.parentNode.replaceChild(newRefreshBtn, refreshKVStatsBtn);
-                
-                // 重新获取元素并绑定事件
-                const refreshedBtn = document.getElementById('refresh-kv-stats');
-                refreshedBtn.addEventListener('click', async function() {
+                refreshKVStatsBtn.addEventListener('click', async function() {
                     console.log('KV刷新按钮被点击');
                     await fetchKVStats();
+                    await renderKVDataList();
                 });
             }
             
@@ -4734,15 +4929,9 @@
                         state.kvMonitoringActive = true;
                         startKVMonitoringBtn.innerHTML = '<i class="fas fa-stop"></i> 停止性能监控';
                         
-                        state.kvMonitoringInterval = setInterval(() => {
-                            if (state.kvStats) {
-                                state.kvStats.readLatency = Math.floor(Math.random() * 50) + 10;
-                                state.kvStats.writeLatency = Math.floor(Math.random() * 100) + 20;
-                                state.kvStats.successRate = Math.floor(Math.random() * 20) + 80;
-                                state.kvStats.hourlyRequests = Math.floor(Math.random() * 1000) + 500;
-                                updateKVStatsDisplay();
-                            }
-                        }, 3000);
+                        state.kvMonitoringInterval = setInterval(async () => {
+                            await fetchKVStats();
+                        }, 10000);
                         
                         showNotification('KV性能监控已启动', 'success');
                     }
@@ -4773,6 +4962,14 @@
             const kvSearchBtn = document.getElementById('kv-search');
             if (kvSearchBtn) {
                 kvSearchBtn.addEventListener('click', kvSearch);
+            }
+            
+            // KV数据过滤
+            const kvDataFilter = document.getElementById('kv-data-filter');
+            if (kvDataFilter) {
+                kvDataFilter.addEventListener('change', function() {
+                    renderKVDataList();
+                });
             }
             
             console.log("所有事件监听器设置完成");
@@ -5405,8 +5602,11 @@
                     if (connected) {
                         fetchKVStats();
                         
-                        if (CLOUDFLARE_CONFIG.AUTO_SYNC) {
-                            performFullSync().catch(console.error);
+                        // 如果启用了自动同步，并且有用户ID，自动同步一次
+                        if (CLOUDFLARE_CONFIG.AUTO_SYNC && config.userId) {
+                            setTimeout(() => {
+                                performFullSync().catch(console.error);
+                            }, 3000);
                         }
                     }
                 });
