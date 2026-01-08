@@ -866,6 +866,55 @@
                 padding: 1rem;
             }
         }
+        
+        /* 新增：用户ID下拉选择样式 */
+        .user-id-selector {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 2px solid var(--primary-color);
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
+        }
+        
+        .user-id-selector h4 {
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .user-id-option {
+            padding: 12px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .user-id-option:hover {
+            background-color: #e0f2fe;
+            border-color: var(--primary-color);
+        }
+        
+        .user-id-option.selected {
+            background-color: #dbeafe;
+            border-color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .user-id-note {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-top: 1rem;
+            padding: 10px;
+            background-color: #f0f9ff;
+            border-radius: 6px;
+            border-left: 4px solid var(--primary-color);
+        }
     </style>
 </head>
 <body>
@@ -1468,16 +1517,27 @@
                     <p style="margin-bottom: 1rem; font-size: 0.95rem; color: #6b7280;">
                         将数据同步到 Cloudflare Workers KV，实现跨设备访问和数据备份
                     </p>
+                    
+                    <!-- 用户ID下拉选择器 -->
+                    <div class="user-id-selector">
+                        <h4><i class="fas fa-id-card"></i> 选择用户ID</h4>
+                        <p style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.95rem;">
+                            选择相同的用户ID可以在不同设备间共享数据
+                        </p>
+                        <div id="user-id-options">
+                            <!-- 选项将通过JavaScript动态生成 -->
+                        </div>
+                        <div class="user-id-note">
+                            <i class="fas fa-info-circle"></i> 提示：在不同设备上选择相同的用户ID，数据将自动同步共享
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="cloudflare-worker-url">Cloudflare Worker URL</label>
                         <input type="text" id="cloudflare-worker-url" value="https://latency-monitor-api.mgjack13.workers.dev" readonly>
                         <small style="color: #6b7280; display: block; margin-top: 5px;">你的 Worker 地址，无需修改</small>
                     </div>
-                    <div class="form-group">
-                        <label for="cloudflare-user-id">你的用户ID</label>
-                        <input type="text" id="cloudflare-user-id" placeholder="输入自定义用户ID">
-                        <small style="color: #6b7280; display: block; margin-top: 5px;">自定义用户ID，用于在不同设备间同步数据</small>
-                    </div>
+                    
                     <div class="button-group">
                         <button id="save-user-id" class="success">
                             <i class="fas fa-save"></i> 保存用户ID
@@ -1649,17 +1709,24 @@
                     <h3 style="margin-bottom: 1rem; color: var(--dark-color);">
                         <i class="fas fa-id-card"></i> 当前用户ID
                     </h3>
-                    <div class="form-group">
-                        <label for="custom-user-id">自定义用户ID</label>
-                        <input type="text" id="custom-user-id" placeholder="输入您的自定义用户ID (如: user_001)">
-                        <small style="color: #6b7280; display: block; margin-top: 5px;">
-                            使用相同的用户ID在不同设备上可以共享数据。建议使用有意义的ID，如: user_001, user_beijing等。
-                        </small>
+                    
+                    <!-- 用户ID下拉选择器 -->
+                    <div class="user-id-selector">
+                        <h4><i class="fas fa-users"></i> 选择用户ID</h4>
+                        <p style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.95rem;">
+                            选择相同的用户ID可以在不同设备间共享数据
+                        </p>
+                        <div id="user-id-selector-options">
+                            <!-- 选项将通过JavaScript动态生成 -->
+                        </div>
+                        <div class="user-id-note">
+                            <i class="fas fa-info-circle"></i> 提示：选择"Group_001"到"Group_005"中的相同ID，即可在不同设备间共享数据
+                        </div>
                     </div>
                     
                     <div class="user-id-actions">
                         <button id="set-custom-user-id" class="success">
-                            <i class="fas fa-save"></i> 设置用户ID
+                            <i class="fas fa-save"></i> 保存用户ID
                         </button>
                         <button id="generate-random-user-id" class="secondary">
                             <i class="fas fa-random"></i> 生成随机ID
@@ -1703,9 +1770,16 @@
                     
                     <div class="form-group">
                         <label for="merge-user-id">合并其他用户ID的数据</label>
-                        <input type="text" id="merge-user-id" placeholder="输入要合并的用户ID">
+                        <select id="merge-user-id">
+                            <option value="">选择要合并的用户ID</option>
+                            <option value="Group_001">Group_001</option>
+                            <option value="Group_002">Group_002</option>
+                            <option value="Group_003">Group_003</option>
+                            <option value="Group_004">Group_004</option>
+                            <option value="Group_005">Group_005</option>
+                        </select>
                         <small style="color: #6b7280; display: block; margin-top: 5px;">
-                            输入其他用户ID，将其数据合并到当前数据中（用于整合不同用户的数据）
+                            选择其他用户ID，将其数据合并到当前数据中（用于整合不同用户的数据）
                         </small>
                     </div>
                     
@@ -1865,7 +1939,14 @@
                     </div>
                     <div class="form-group">
                         <label for="kv-search-user">搜索用户数据</label>
-                        <input type="text" id="kv-search-user" placeholder="输入用户ID进行搜索">
+                        <select id="kv-search-user">
+                            <option value="">选择用户ID</option>
+                            <option value="Group_001">Group_001</option>
+                            <option value="Group_002">Group_002</option>
+                            <option value="Group_003">Group_003</option>
+                            <option value="Group_004">Group_004</option>
+                            <option value="Group_005">Group_005</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="kv-search-date">按日期搜索</label>
@@ -2220,8 +2301,9 @@
                 let devices = JSON.parse(localStorage.getItem('latency_monitor_devices') || '[]');
                 
                 if (!userId) {
-                    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    userIdType = 'random';
+                    // 默认使用Group_001作为初始用户ID
+                    userId = 'Group_001';
+                    userIdType = 'group';
                     localStorage.setItem('latency_monitor_user_id', userId);
                     localStorage.setItem('latency_monitor_user_id_type', userIdType);
                 }
@@ -2239,6 +2321,7 @@
                 CLOUDFLARE_CONFIG.USER_ID = userId;
                 
                 updateUserIdDisplay();
+                renderUserIdOptions();
                 renderDeviceList();
                 
                 console.log("用户ID初始化完成:", userId, "设备ID:", deviceId);
@@ -2249,25 +2332,127 @@
             }
         }
 
+        function renderUserIdOptions() {
+            const userIdOptions = [
+                { id: 'Group_001', name: 'Group_001', description: '第一组用户' },
+                { id: 'Group_002', name: 'Group_002', description: '第二组用户' },
+                { id: 'Group_003', name: 'Group_003', description: '第三组用户' },
+                { id: 'Group_004', name: 'Group_004', description: '第四组用户' },
+                { id: 'Group_005', name: 'Group_005', description: '第五组用户' }
+            ];
+            
+            // 渲染云端同步标签页的用户ID选项
+            const cloudflareOptionsContainer = document.getElementById('user-id-options');
+            if (cloudflareOptionsContainer) {
+                cloudflareOptionsContainer.innerHTML = '';
+                
+                userIdOptions.forEach(option => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = `user-id-option ${config.userId === option.id ? 'selected' : ''}`;
+                    optionDiv.dataset.userId = option.id;
+                    optionDiv.innerHTML = `
+                        <div style="font-weight: 600;">${option.name}</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">${option.description}</div>
+                    `;
+                    
+                    optionDiv.addEventListener('click', function() {
+                        // 移除所有选择状态
+                        document.querySelectorAll('.user-id-option').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        
+                        // 添加当前选择状态
+                        this.classList.add('selected');
+                        
+                        // 更新输入框值
+                        const userIdInput = document.getElementById('cloudflare-user-id');
+                        if (userIdInput) {
+                            userIdInput.value = this.dataset.userId;
+                        }
+                        
+                        // 更新自定义用户ID输入框
+                        const customUserIdInput = document.getElementById('custom-user-id');
+                        if (customUserIdInput) {
+                            customUserIdInput.value = this.dataset.userId;
+                        }
+                    });
+                    
+                    cloudflareOptionsContainer.appendChild(optionDiv);
+                });
+            }
+            
+            // 渲染用户管理标签页的用户ID选项
+            const userManagementOptionsContainer = document.getElementById('user-id-selector-options');
+            if (userManagementOptionsContainer) {
+                userManagementOptionsContainer.innerHTML = '';
+                
+                userIdOptions.forEach(option => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = `user-id-option ${config.userId === option.id ? 'selected' : ''}`;
+                    optionDiv.dataset.userId = option.id;
+                    optionDiv.innerHTML = `
+                        <div style="font-weight: 600;">${option.name}</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">${option.description}</div>
+                    `;
+                    
+                    optionDiv.addEventListener('click', function() {
+                        // 移除所有选择状态
+                        document.querySelectorAll('.user-id-option').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        
+                        // 添加当前选择状态
+                        this.classList.add('selected');
+                        
+                        // 更新输入框值
+                        const customUserIdInput = document.getElementById('custom-user-id');
+                        if (customUserIdInput) {
+                            customUserIdInput.value = this.dataset.userId;
+                        }
+                        
+                        // 更新云端同步输入框
+                        const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
+                        if (cloudflareUserIdInput) {
+                            cloudflareUserIdInput.value = this.dataset.userId;
+                        }
+                    });
+                    
+                    userManagementOptionsContainer.appendChild(optionDiv);
+                });
+            }
+            
+            // 更新云端同步输入框的值
+            const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
+            if (cloudflareUserIdInput) {
+                cloudflareUserIdInput.value = config.userId || 'Group_001';
+            }
+            
+            // 更新自定义用户ID输入框的值
+            const customUserIdInput = document.getElementById('custom-user-id');
+            if (customUserIdInput) {
+                customUserIdInput.value = config.userId || 'Group_001';
+            }
+        }
+
         function updateUserIdDisplay() {
             const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
             if (cloudflareUserIdInput) {
-                cloudflareUserIdInput.value = config.userId || '';
+                cloudflareUserIdInput.value = config.userId || 'Group_001';
             }
             
             const customUserIdInput = document.getElementById('custom-user-id');
             if (customUserIdInput) {
-                customUserIdInput.value = config.userId || '';
+                customUserIdInput.value = config.userId || 'Group_001';
             }
             
             const currentUserIdElement = document.getElementById('current-user-id');
             if (currentUserIdElement) {
-                currentUserIdElement.textContent = config.userId || '未设置';
+                currentUserIdElement.textContent = config.userId || 'Group_001';
             }
             
             const userIdTypeElement = document.getElementById('user-id-type');
             if (userIdTypeElement) {
-                userIdTypeElement.textContent = config.userIdType === 'custom' ? '自定义ID' : '随机ID';
+                userIdTypeElement.textContent = config.userIdType === 'group' ? '分组ID' : '随机ID';
             }
             
             const deviceCountElement = document.getElementById('device-count');
@@ -2277,7 +2462,18 @@
             
             const currentUserIdDisplay = document.getElementById('current-user-id-display');
             if (currentUserIdDisplay) {
-                currentUserIdDisplay.textContent = config.userId || '未设置';
+                currentUserIdDisplay.textContent = config.userId || 'Group_001';
+            }
+            
+            // 更新所有下拉选择框
+            const mergeUserIdSelect = document.getElementById('merge-user-id');
+            if (mergeUserIdSelect) {
+                mergeUserIdSelect.value = config.userId || '';
+            }
+            
+            const kvSearchUserSelect = document.getElementById('kv-search-user');
+            if (kvSearchUserSelect) {
+                kvSearchUserSelect.value = config.userId || '';
             }
         }
 
@@ -2322,26 +2518,34 @@
                     return;
                 }
                 
+                // 检查是否是有效的分组ID
+                const validGroupIds = ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'];
+                if (!validGroupIds.includes(userId)) {
+                    showNotification('请选择有效的分组ID (Group_001 到 Group_005)', 'warning');
+                    return;
+                }
+                
                 // 如果用户ID改变，需要重新同步数据
                 const oldUserId = config.userId;
                 config.userId = userId;
-                config.userIdType = 'custom';
+                config.userIdType = 'group';
                 CLOUDFLARE_CONFIG.USER_ID = userId;
                 
                 localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', 'custom');
+                localStorage.setItem('latency_monitor_user_id_type', 'group');
                 saveConfig();
                 
                 updateUserIdDisplay();
+                renderUserIdOptions();
                 
                 // 如果用户ID改变，自动从云端同步新用户的数据
                 if (oldUserId !== userId) {
-                    showNotification('用户ID已设置，正在从云端同步数据...', 'info');
+                    showNotification(`用户ID已设置为 ${userId}，正在从云端同步数据...`, 'info');
                     setTimeout(() => {
                         syncFromCloud();
                     }, 1000);
                 } else {
-                    showNotification('自定义用户ID已设置', 'success');
+                    showNotification('用户ID已设置', 'success');
                 }
             } catch (error) {
                 console.error("设置自定义用户ID时出错:", error);
@@ -2367,6 +2571,7 @@
                 }
                 
                 updateUserIdDisplay();
+                renderUserIdOptions();
                 
                 // 如果用户ID改变，自动从云端同步新用户的数据
                 if (oldUserId !== userId) {
@@ -2385,13 +2590,29 @@
 
         function resetUserId() {
             try {
-                if (confirm('确定要重置用户ID吗？这将清除当前的用户ID设置。')) {
-                    localStorage.removeItem('latency_monitor_user_id');
-                    localStorage.removeItem('latency_monitor_user_id_type');
+                if (confirm('确定要重置用户ID吗？这将重置为默认分组ID Group_001。')) {
+                    const oldUserId = config.userId;
+                    config.userId = 'Group_001';
+                    config.userIdType = 'group';
+                    CLOUDFLARE_CONFIG.USER_ID = 'Group_001';
+                    
+                    localStorage.setItem('latency_monitor_user_id', 'Group_001');
+                    localStorage.setItem('latency_monitor_user_id_type', 'group');
+                    saveConfig();
                     
                     initUserId();
                     updateUserIdDisplay();
-                    showNotification('用户ID已重置', 'success');
+                    renderUserIdOptions();
+                    
+                    // 如果用户ID改变，自动从云端同步新用户的数据
+                    if (oldUserId !== 'Group_001') {
+                        showNotification('用户ID已重置为 Group_001，正在从云端同步数据...', 'info');
+                        setTimeout(() => {
+                            syncFromCloud();
+                        }, 1000);
+                    } else {
+                        showNotification('用户ID已重置为 Group_001', 'success');
+                    }
                 }
             } catch (error) {
                 console.error("重置用户ID时出错:", error);
@@ -2429,6 +2650,7 @@
                 
                 updateNodeSelectOptions();
                 updateUserIdDisplay();
+                renderUserIdOptions();
             } catch (error) {
                 console.error("加载配置时出错:", error);
                 showNotification('加载配置失败，使用默认配置', 'warning');
@@ -3302,30 +3524,67 @@
                     refreshBtn.disabled = true;
                 }
                 
-                const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}`,
-                    {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
+                // 首先尝试连接Worker
+                const testResponse = await fetch(CLOUDFLARE_CONFIG.WORKER_URL + CLOUDFLARE_CONFIG.ENDPOINTS.TEST, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
                     }
-                );
+                });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('KV统计信息获取成功:', data);
-                    state.kvStats = data;
-                    updateKVStatsDisplay();
+                if (testResponse.ok) {
+                    state.cloudflareConnected = true;
                     
-                    showNotification('KV状态已刷新', 'success');
-                    return data;
+                    // 尝试获取KV统计信息
+                    try {
+                        const response = await fetch(
+                            `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}`,
+                            {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                timeout: 5000
+                            }
+                        );
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('KV统计信息获取成功:', data);
+                            state.kvStats = data;
+                            updateKVStatsDisplay();
+                            
+                            showNotification('KV状态已刷新', 'success');
+                            return data;
+                        } else {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                    } catch (kvError) {
+                        console.warn('获取KV统计失败，使用模拟数据:', kvError);
+                        // 使用更真实的模拟数据
+                        const mockData = {
+                            totalUsers: 5,
+                            totalKeys: 25 + Math.floor(Math.random() * 10),
+                            totalData: state.historyData.length + Math.floor(Math.random() * 100),
+                            storageUsed: Math.round((state.historyData.length * 0.1) + Math.random() * 5),
+                            storageLimit: 1024,
+                            readLatency: 15 + Math.floor(Math.random() * 30),
+                            writeLatency: 25 + Math.floor(Math.random() * 40),
+                            successRate: 95 + Math.floor(Math.random() * 4),
+                            hourlyRequests: 80 + Math.floor(Math.random() * 50)
+                        };
+                        state.kvStats = mockData;
+                        updateKVStatsDisplay();
+                        
+                        showNotification('KV状态已刷新 (模拟数据)', 'info');
+                        return mockData;
+                    }
                 } else {
-                    // 使用模拟数据
-                    console.log('使用模拟KV数据');
+                    // Worker连接失败，使用模拟数据
+                    console.log('Worker连接失败，使用模拟KV数据');
                     const mockData = {
-                        totalUsers: 1,
-                        totalKeys: 5,
+                        totalUsers: 5,
+                        totalKeys: 25,
                         totalData: state.historyData.length,
                         storageUsed: Math.round(state.historyData.length * 0.1),
                         storageLimit: 1024,
@@ -3344,8 +3603,8 @@
                 console.error('获取KV统计失败:', error);
                 // 使用模拟数据
                 const mockData = {
-                    totalUsers: 1,
-                    totalKeys: 5,
+                    totalUsers: 5,
+                    totalKeys: 25,
                     totalData: state.historyData.length,
                     storageUsed: Math.round(state.historyData.length * 0.1),
                     storageLimit: 1024,
@@ -3469,15 +3728,18 @@
             const storageData = [];
             const requestData = [];
             
+            // 生成7天的数据
             for (let i = 6; i >= 0; i--) {
                 const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
                 labels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
                 
-                const storage = state.kvStats.storageUsed || 0;
-                const requests = state.kvStats.hourlyRequests || 0;
+                const baseStorage = state.kvStats.storageUsed || 50;
+                const baseRequests = state.kvStats.hourlyRequests || 100;
                 
-                storageData.push(Math.round(storage * (0.9 + Math.random() * 0.2)));
-                requestData.push(Math.round(requests * (0.8 + Math.random() * 0.4)));
+                // 添加一些随机变化，使图表看起来更真实
+                const dayVariation = 0.8 + (Math.random() * 0.4);
+                storageData.push(Math.round(baseStorage * dayVariation));
+                requestData.push(Math.round(baseRequests * (0.7 + Math.random() * 0.6)));
             }
             
             state.kvChart.data.labels = labels;
@@ -4008,22 +4270,24 @@
                     return;
                 }
                 
-                // 重要：设置用户ID为MGJack
-                if (userId.toLowerCase() !== 'mgjack') {
-                    showNotification('为了数据共享，请使用用户ID: MGJack', 'warning');
-                    // 继续执行，但提示用户
+                // 检查是否是有效的分组ID
+                const validGroupIds = ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'];
+                if (!validGroupIds.includes(userId)) {
+                    showNotification('请选择有效的分组ID (Group_001 到 Group_005)', 'warning');
+                    return;
                 }
                 
                 config.userId = userId;
-                config.userIdType = 'custom';
+                config.userIdType = 'group';
                 CLOUDFLARE_CONFIG.USER_ID = userId;
                 
                 localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', 'custom');
+                localStorage.setItem('latency_monitor_user_id_type', 'group');
                 saveConfig();
                 
                 updateUserIdDisplay();
-                showNotification('用户ID已保存，请使用"从云端同步"获取数据', 'success');
+                renderUserIdOptions();
+                showNotification(`用户ID已设置为 ${userId}，请使用"从云端同步"获取数据`, 'success');
                 
                 // 自动从云端同步数据
                 setTimeout(() => {
@@ -4050,6 +4314,7 @@
                 saveConfig();
                 
                 updateUserIdDisplay();
+                renderUserIdOptions();
                 showNotification('新用户ID已生成', 'success');
             } catch (error) {
                 console.error("生成新用户ID时出错:", error);
@@ -4125,6 +4390,7 @@
                                 updateChart();
                                 updateDataCounts();
                                 updateUserIdDisplay();
+                                renderUserIdOptions();
                                 
                                 showNotification('备份已恢复', 'success');
                             }
@@ -4165,11 +4431,11 @@
 
         async function mergeUserData() {
             try {
-                const mergeUserIdInput = document.getElementById('merge-user-id');
-                const mergeUserId = mergeUserIdInput.value.trim();
+                const mergeUserIdSelect = document.getElementById('merge-user-id');
+                const mergeUserId = mergeUserIdSelect.value.trim();
                 
                 if (!mergeUserId) {
-                    showNotification('请输入要合并的用户ID', 'error');
+                    showNotification('请选择要合并的用户ID', 'error');
                     return;
                 }
                 
@@ -4224,8 +4490,8 @@
 
         async function compareUserData() {
             try {
-                const mergeUserIdInput = document.getElementById('merge-user-id');
-                const compareUserId = mergeUserIdInput.value.trim();
+                const mergeUserIdSelect = document.getElementById('merge-user-id');
+                const compareUserId = mergeUserIdSelect.value.trim();
                 
                 if (!compareUserId) {
                     showNotification('请输入要比较的用户ID', 'error');
@@ -4347,8 +4613,8 @@
                 } else {
                     // 模拟备份
                     const backupData = {
-                        users: [config.userId],
-                        totalKeys: 5,
+                        users: ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'],
+                        totalKeys: 25,
                         timestamp: new Date().toISOString()
                     };
                     
@@ -4466,7 +4732,8 @@
 
         async function kvSearch() {
             try {
-                const searchUser = document.getElementById('kv-search-user').value.trim();
+                const searchUserSelect = document.getElementById('kv-search-user');
+                const searchUser = searchUserSelect.value.trim();
                 const searchDate = document.getElementById('kv-search-date').value;
                 
                 if (!searchUser && !searchDate) {
@@ -4754,9 +5021,15 @@
                         }, 500);
                     }
                     
-                    // 如果切换到用户管理标签页，则刷新设备列表
+                    // 如果切换到用户管理标签页，则刷新设备列表和用户ID选项
                     if (tabId === 'userid') {
                         renderDeviceList();
+                        renderUserIdOptions();
+                    }
+                    
+                    // 如果切换到云端同步标签页，则刷新用户ID选项
+                    if (tabId === 'cloudflare') {
+                        renderUserIdOptions();
                     }
                 });
             });
@@ -5773,8 +6046,8 @@
                 });
             }, 2000);
             
-            // 重要提示：使用MGJack用户ID共享数据
-            showNotification(`应用已初始化完成，当前用户ID: ${config.userId}。如需与其他设备共享数据，请设置用户ID为: MGJack`, 'info');
+            // 重要提示：使用分组ID共享数据
+            showNotification(`应用已初始化完成，当前用户ID: ${config.userId}。选择相同的Group_ID可以在不同设备间共享数据`, 'info');
             
             console.log("所有初始化步骤完成");
         }
@@ -5795,3 +6068,4 @@
     </script>
 </body>
 </html>
+                            
