@@ -3547,21 +3547,31 @@
                 // 2. 同步历史数据
                 const cloudHistory = await loadFromCloudflare('history');
                 if (cloudHistory && Array.isArray(cloudHistory)) {
-                    console.log("获取到云端历史数据:", cloudHistory.length);
-                    
-                    // 根据冲突解决策略合并数据
-                    const conflictResolution = CLOUDFLARE_CONFIG.SYNC_SETTINGS.conflictResolution;
-                    
-                    // 创建时间戳映射
-                    const localMap = new Map();
-                    state.historyData.forEach(item => {
-                        localMap.set(item.timestamp, item);
-                    });
-                    
-                    const cloudMap = new Map();
-                    cloudHistory.forEach(item => {
-                        cloudMap.set(item.timestamp, item);
-                    });
+    console.log("【数据合并】开始。本地数据量:", state.historyData.length, "，云端数据量:", cloudHistory.length);
+
+    // 1. 将云端数据放在合并数组的后面，使其在去重时具有更高优先级
+    const allData = [...state.historyData, ...cloudHistory];
+
+    // 2. 使用“时间戳+节点”的复合键创建Map去重，确保唯一性
+    const mergeMap = new Map();
+    allData.forEach(item => {
+        // 创建比单纯时间戳更唯一的键，防止误删
+        const uniqueKey = `${item.timestamp}_${item.mainlandNode || ''}_${item.taiwanNode || ''}`;
+        mergeMap.set(uniqueKey, item); // 后出现的（即云端数据）会覆盖先出现的
+    });
+
+    // 3. 将Map转回数组并按时排序，直接赋值给 state.historyData
+    state.historyData = Array.from(mergeMap.values());
+    state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    console.log("【数据合并】完成。合并后总数据量:", state.historyData.length);
+    saveHistoryData(); // 保存到本地存储
+    showNotification(`数据同步完成，当前共 ${state.historyData.length} 条记录`, 'success');
+
+} else {
+    console.log("云端无有效历史数据，跳过合并。");
+    showNotification('云端没有历史数据', 'info');
+}
 					
 					// =====【开始：替换此部分代码】=====
 	if (cloudHistory && Array.isArray(cloudHistory) && cloudHistory.length > 0) {
