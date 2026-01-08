@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>两岸网络延迟监测工具 - 增强版</title>
-    <!-- 使用本地可访问的CDN链接 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
-        /* [样式代码保持不变，与原始文件相同] */
         :root {
             --primary-color: #2563eb;
             --secondary-color: #10b981;
@@ -522,7 +520,6 @@
             border: 1px solid #bae6fd;
         }
         
-        /* 新增的用户ID管理样式 */
         .user-id-management {
             background-color: #f8fafc;
             padding: 1rem;
@@ -551,7 +548,6 @@
             border: 1px solid #bae6fd;
         }
         
-        /* 新增：同步状态监控样式 */
         .sync-status-panel {
             background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
             padding: 1.5rem;
@@ -867,7 +863,6 @@
             }
         }
         
-        /* 新增：用户ID下拉选择样式 */
         .user-id-selector {
             background-color: white;
             padding: 1rem;
@@ -916,7 +911,6 @@
             border-left: 4px solid var(--primary-color);
         }
         
-        /* 新增：修复问题3，简化KV状态页面样式 */
         .kv-simple-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -944,7 +938,6 @@
             margin-top: 0.5rem;
         }
         
-        /* 新增：简化的用户共享界面 */
         .simple-share-panel {
             background: linear-gradient(135deg, #e0f2fe, #dbeafe);
             padding: 1.5rem;
@@ -958,6 +951,41 @@
             border-radius: 8px;
             margin-top: 1rem;
             border-left: 4px solid var(--secondary-color);
+        }
+        
+        .data-merge-log {
+            background-color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .merge-log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .merge-log-entry.success {
+            color: #065f46;
+        }
+        
+        .merge-log-entry.warning {
+            color: #92400e;
+        }
+        
+        .merge-log-entry.error {
+            color: #991b1b;
+        }
+        
+        .merge-summary {
+            background-color: #f0f9ff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            border-left: 4px solid var(--primary-color);
         }
     </style>
 </head>
@@ -1001,11 +1029,9 @@
             <div class="tab" data-tab="cloudflare">
                 <i class="fas fa-cloud"></i> 云端同步
             </div>
-            <!-- 新增的用户ID管理标签 -->
             <div class="tab" data-tab="userid">
                 <i class="fas fa-users"></i> 用户管理
             </div>
-            <!-- 移除KV状态标签，因为无法获取真实数据 -->
         </div>
 
         <!-- 仪表板标签 -->
@@ -1320,7 +1346,6 @@
                     <!-- 节点将通过JavaScript动态添加 -->
                 </div>
                 
-                <!-- 节点上传功能区域 -->
                 <div class="nodes-upload-section">
                     <div class="control-title">
                         <i class="fas fa-file-upload"></i> 上传节点列表
@@ -1598,7 +1623,7 @@
                             <option value="newer">保留最新数据</option>
                             <option value="local">优先本地数据</option>
                             <option value="remote">优先云端数据</option>
-                            <option value="merge">自动合并</option>
+                            <option value="merge">智能合并</option>
                         </select>
                     </div>
                     <button id="save-sync-settings" class="success">
@@ -1781,6 +1806,16 @@
                         </button>
                     </div>
                     
+                    <div id="merge-log-container" style="margin-top: 1.5rem; display: none;">
+                        <h4><i class="fas fa-list"></i> 合并日志</h4>
+                        <div class="data-merge-log" id="data-merge-log">
+                            <!-- 合并日志将动态添加 -->
+                        </div>
+                        <div class="merge-summary" id="merge-summary" style="display: none;">
+                            <!-- 合并摘要将动态添加 -->
+                        </div>
+                    </div>
+                    
                     <div style="margin-top: 1.5rem;">
                         <p><strong>说明:</strong></p>
                         <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
@@ -1844,12 +1879,12 @@
             SYNC_SETTINGS: {
                 strategy: 'incremental',
                 frequency: '5min',
-                conflictResolution: 'newer'
+                conflictResolution: 'merge'
             }
         };
 
         const config = {
-            version: '2.0',
+            version: '2.1',
             testInterval: 60,
             saveInterval: 1800,
             userLocation: '',
@@ -1872,7 +1907,8 @@
             shareGroup: null,
             shareGroupType: 'default',
             deviceId: null,
-            lastSyncTime: null
+            lastSyncTime: null,
+            dataVersion: 1
         };
 
         const defaultConfig = JSON.parse(JSON.stringify(config));
@@ -1904,8 +1940,252 @@
                     conflicts: 0,
                     duration: 0
                 }
-            }
+            },
+            mergeLog: []
         };
+
+        // ==================== 数据合并和同步修正函数 ====================
+
+        /**
+         * 智能合并两个数据项，根据冲突解决策略
+         */
+        function mergeDataItems(localItem, cloudItem, conflictResolution) {
+            if (!localItem && cloudItem) return { ...cloudItem, dataSource: 'cloud' };
+            if (localItem && !cloudItem) return { ...localItem, dataSource: 'local' };
+            
+            const localTime = new Date(localItem.timestamp).getTime();
+            const cloudTime = new Date(cloudItem.timestamp).getTime();
+            
+            switch (conflictResolution) {
+                case 'local':
+                    return { ...localItem, dataSource: 'local', merged: true };
+                case 'remote':
+                    return { ...cloudItem, dataSource: 'cloud', merged: true };
+                case 'newer':
+                    return localTime >= cloudTime ? 
+                        { ...localItem, dataSource: 'local', merged: true } : 
+                        { ...cloudItem, dataSource: 'cloud', merged: true };
+                case 'merge':
+                default:
+                    // 智能合并：优先保留更完整或更新的数据
+                    const mergedItem = { ...cloudItem, ...localItem };
+                    
+                    // 如果时间戳相同但内容不同，标记为已合并
+                    if (localItem.timestamp === cloudItem.timestamp && 
+                        JSON.stringify(localItem) !== JSON.stringify(cloudItem)) {
+                        mergedItem.merged = true;
+                        mergedItem.dataSource = 'merged';
+                        mergedItem.originalSources = {
+                            local: localItem,
+                            cloud: cloudItem
+                        };
+                    } else {
+                        mergedItem.dataSource = localTime >= cloudTime ? 'local' : 'cloud';
+                    }
+                    
+                    return mergedItem;
+            }
+        }
+
+        /**
+         * 验证数据项的完整性
+         */
+        function validateDataItem(item) {
+            if (!item) return false;
+            
+            const requiredFields = ['timestamp', 'mainlandLatency', 'taiwanLatency'];
+            for (const field of requiredFields) {
+                if (item[field] === undefined || item[field] === null) {
+                    return false;
+                }
+            }
+            
+            // 验证数据类型
+            if (typeof item.mainlandLatency !== 'number' || 
+                typeof item.taiwanLatency !== 'number') {
+                return false;
+            }
+            
+            // 验证时间戳格式
+            const timestamp = new Date(item.timestamp);
+            if (isNaN(timestamp.getTime())) {
+                return false;
+            }
+            
+            return true;
+        }
+
+        /**
+         * 智能合并本地和云端数据
+         */
+        function mergeLocalAndCloudData(localData, cloudData, conflictResolution = 'merge') {
+            const mergeStartTime = Date.now();
+            const mergeLog = [];
+            let conflicts = 0;
+            
+            // 验证输入数据
+            const validLocalData = localData.filter(validateDataItem);
+            const validCloudData = cloudData.filter(validateDataItem);
+            
+            if (validLocalData.length < localData.length) {
+                mergeLog.push(`本地数据过滤: ${localData.length - validLocalData.length} 条无效数据被忽略`);
+            }
+            
+            if (validCloudData.length < cloudData.length) {
+                mergeLog.push(`云端数据过滤: ${cloudData.length - validCloudData.length} 条无效数据被忽略`);
+            }
+            
+            // 创建时间戳映射
+            const localMap = new Map();
+            const cloudMap = new Map();
+            
+            validLocalData.forEach(item => {
+                localMap.set(item.timestamp, item);
+            });
+            
+            validCloudData.forEach(item => {
+                cloudMap.set(item.timestamp, item);
+            });
+            
+            // 合并数据
+            const mergedData = [];
+            const allTimestamps = new Set([...localMap.keys(), ...cloudMap.keys()]);
+            
+            allTimestamps.forEach(timestamp => {
+                const localItem = localMap.get(timestamp);
+                const cloudItem = cloudMap.get(timestamp);
+                
+                if (localItem && cloudItem) {
+                    // 两者都有，检查是否冲突
+                    const isConflict = JSON.stringify(localItem) !== JSON.stringify(cloudItem);
+                    
+                    if (isConflict) {
+                        conflicts++;
+                        mergeLog.push(`发现冲突: ${timestamp} (${conflictResolution}策略)`);
+                    }
+                    
+                    const mergedItem = mergeDataItems(localItem, cloudItem, conflictResolution);
+                    mergedData.push(mergedItem);
+                } else if (localItem) {
+                    // 只有本地有
+                    mergedData.push({ ...localItem, dataSource: 'local' });
+                } else if (cloudItem) {
+                    // 只有云端有
+                    mergedData.push({ ...cloudItem, dataSource: 'cloud' });
+                }
+            });
+            
+            // 按时间戳排序
+            mergedData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            const mergeDuration = Date.now() - mergeStartTime;
+            
+            mergeLog.push(`合并完成: ${mergedData.length} 条记录，${conflicts} 个冲突`);
+            mergeLog.push(`耗时: ${mergeDuration}ms`);
+            
+            return {
+                mergedData,
+                conflicts,
+                mergeLog,
+                stats: {
+                    localCount: validLocalData.length,
+                    cloudCount: validCloudData.length,
+                    mergedCount: mergedData.length,
+                    newFromLocal: mergedData.filter(item => item.dataSource === 'local').length,
+                    newFromCloud: mergedData.filter(item => item.dataSource === 'cloud').length,
+                    mergedItems: mergedData.filter(item => item.merged).length,
+                    duration: mergeDuration
+                }
+            };
+        }
+
+        /**
+         * 合并配置数据
+         */
+        function mergeConfigData(localConfig, cloudConfig) {
+            const mergedConfig = { ...localConfig };
+            
+            // 保留本地重要设置
+            const localImportantKeys = ['userLocation', 'shareGroup', 'deviceId', 'dataVersion'];
+            localImportantKeys.forEach(key => {
+                if (localConfig[key] !== undefined) {
+                    mergedConfig[key] = localConfig[key];
+                }
+            });
+            
+            // 合并节点配置，云端节点优先
+            if (cloudConfig.nodes && typeof cloudConfig.nodes === 'object') {
+                mergedConfig.nodes = { ...cloudConfig.nodes, ...localConfig.nodes };
+            }
+            
+            // 合并默认节点设置
+            if (cloudConfig.defaultNodes && typeof cloudConfig.defaultNodes === 'object') {
+                mergedConfig.defaultNodes = {
+                    ...cloudConfig.defaultNodes,
+                    ...localConfig.defaultNodes
+                };
+            }
+            
+            // 更新数据版本
+            mergedConfig.dataVersion = (mergedConfig.dataVersion || 0) + 1;
+            
+            return mergedConfig;
+        }
+
+        /**
+         * 显示合并日志
+         */
+        function showMergeLog(mergeResult, source = '云端同步') {
+            const logContainer = document.getElementById('data-merge-log');
+            const summaryContainer = document.getElementById('merge-summary');
+            const container = document.getElementById('merge-log-container');
+            
+            if (!logContainer || !summaryContainer || !container) return;
+            
+            // 显示容器
+            container.style.display = 'block';
+            
+            // 清空现有日志
+            logContainer.innerHTML = '';
+            
+            // 添加新日志
+            mergeResult.mergeLog.forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'merge-log-entry';
+                
+                if (log.includes('冲突') || log.includes('警告')) {
+                    logEntry.classList.add('warning');
+                } else if (log.includes('错误') || log.includes('失败')) {
+                    logEntry.classList.add('error');
+                } else {
+                    logEntry.classList.add('success');
+                }
+                
+                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${log}`;
+                logContainer.appendChild(logEntry);
+            });
+            
+            // 滚动到底部
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // 显示摘要
+            summaryContainer.style.display = 'block';
+            summaryContainer.innerHTML = `
+                <h4><i class="fas fa-chart-bar"></i> 合并摘要 (${source})</h4>
+                <p>本地数据: ${mergeResult.stats.localCount} 条</p>
+                <p>云端数据: ${mergeResult.stats.cloudCount} 条</p>
+                <p>合并后数据: ${mergeResult.stats.mergedCount} 条</p>
+                <p>新增本地数据: ${mergeResult.stats.newFromLocal} 条</p>
+                <p>新增云端数据: ${mergeResult.stats.newFromCloud} 条</p>
+                <p>冲突数量: ${mergeResult.conflicts} 个</p>
+                <p>耗时: ${mergeResult.stats.duration}ms</p>
+            `;
+            
+            // 自动隐藏日志（5分钟后）
+            setTimeout(() => {
+                container.style.display = 'none';
+            }, 300000);
+        }
 
         // ==================== 基础工具函数 ====================
 
@@ -2117,15 +2397,12 @@
                     `;
                     
                     optionDiv.addEventListener('click', function() {
-                        // 移除所有选择状态
                         document.querySelectorAll('#share-group-options .user-id-option').forEach(el => {
                             el.classList.remove('selected');
                         });
                         
-                        // 添加当前选择状态
                         this.classList.add('selected');
                         
-                        // 更新共享组显示
                         const currentShareGroupElement = document.getElementById('current-share-group');
                         if (currentShareGroupElement) {
                             currentShareGroupElement.textContent = this.dataset.shareGroup;
@@ -2151,15 +2428,12 @@
                     `;
                     
                     optionDiv.addEventListener('click', function() {
-                        // 移除所有选择状态
                         document.querySelectorAll('#user-id-selector-options .user-id-option').forEach(el => {
                             el.classList.remove('selected');
                         });
                         
-                        // 添加当前选择状态
                         this.classList.add('selected');
                         
-                        // 更新共享组显示
                         const currentShareGroupElement = document.getElementById('current-share-group');
                         if (currentShareGroupElement) {
                             currentShareGroupElement.textContent = this.dataset.shareGroup;
@@ -2195,7 +2469,6 @@
                 currentUserIdDisplay.textContent = config.shareGroup || 'Group_001';
             }
             
-            // 更新合并共享组选择框
             const mergeShareGroupSelect = document.getElementById('merge-share-group');
             if (mergeShareGroupSelect) {
                 mergeShareGroupSelect.value = config.shareGroup || '';
@@ -2206,13 +2479,11 @@
             try {
                 let selectedShareGroup = null;
                 
-                // 尝试从云端同步标签页获取选中的共享组
                 const cloudflareSelected = document.querySelector('#share-group-options .user-id-option.selected');
                 if (cloudflareSelected) {
                     selectedShareGroup = cloudflareSelected.dataset.shareGroup;
                 }
                 
-                // 如果没找到，尝试从用户管理标签页获取
                 if (!selectedShareGroup) {
                     const userManagementSelected = document.querySelector('#user-id-selector-options .user-id-option.selected');
                     if (userManagementSelected) {
@@ -2220,19 +2491,16 @@
                     }
                 }
                 
-                // 如果还没找到，使用当前配置
                 if (!selectedShareGroup) {
                     selectedShareGroup = config.shareGroup || 'Group_001';
                 }
                 
-                // 检查是否是有效的分组
                 const validGroupIds = ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'];
                 if (!validGroupIds.includes(selectedShareGroup)) {
                     showNotification('请选择有效的共享组 (Group_001 到 Group_005)', 'warning');
                     return;
                 }
                 
-                // 如果共享组改变，需要重新同步数据
                 const oldShareGroup = config.shareGroup;
                 config.shareGroup = selectedShareGroup;
                 config.shareGroupType = 'group';
@@ -2245,7 +2513,6 @@
                 updateShareGroupDisplay();
                 renderShareGroupOptions();
                 
-                // 如果共享组改变，自动从云端同步新组的数据
                 if (oldShareGroup !== selectedShareGroup) {
                     showNotification(`共享组已设置为 ${selectedShareGroup}，正在从云端同步数据...`, 'info');
                     setTimeout(() => {
@@ -2275,7 +2542,6 @@
                 updateShareGroupDisplay();
                 renderShareGroupOptions();
                 
-                // 如果共享组改变，自动从云端同步新组的数据
                 if (oldShareGroup !== shareGroup) {
                     showNotification('随机共享组已生成，正在从云端同步数据...', 'info');
                     setTimeout(() => {
@@ -2306,7 +2572,6 @@
                     updateShareGroupDisplay();
                     renderShareGroupOptions();
                     
-                    // 如果共享组改变，自动从云端同步新组的数据
                     if (oldShareGroup !== 'Group_001') {
                         showNotification('共享组已重置为 Group_001，正在从云端同步数据...', 'info');
                         setTimeout(() => {
@@ -2394,11 +2659,17 @@
 
         function saveHistoryData() {
             try {
-                localStorage.setItem('latencyHistory', JSON.stringify(state.historyData));
+                // 清理数据源标记（这些不需要保存到本地）
+                const dataToSave = state.historyData.map(item => {
+                    const { dataSource, merged, originalSources, ...cleanItem } = item;
+                    return cleanItem;
+                });
+                
+                localStorage.setItem('latencyHistory', JSON.stringify(dataToSave));
                 console.log("历史数据已保存到本地");
                 
                 if (state.cloudflareConnected && CLOUDFLARE_CONFIG.AUTO_SYNC && state.historyData.length > 0) {
-                    saveToCloudflare('history', state.historyData).catch(error => {
+                    saveToCloudflare('history', dataToSave).catch(error => {
                         console.warn('云端保存历史数据失败:', error);
                     });
                 }
@@ -2520,9 +2791,17 @@
                     const mainlandNodeName = config.nodes[item.mainlandNode]?.name || item.mainlandNode;
                     const taiwanNodeName = config.nodes[item.taiwanNode]?.name || item.taiwanNode;
                     
+                    // 检查数据来源
+                    let sourceBadge = '';
+                    if (item.dataSource === 'cloud') {
+                        sourceBadge = '<span title="来自云端" style="color:#10b981; margin-left:5px;"><i class="fas fa-cloud"></i></span>';
+                    } else if (item.dataSource === 'merged') {
+                        sourceBadge = '<span title="合并数据" style="color:#f59e0b; margin-left:5px;"><i class="fas fa-merge"></i></span>';
+                    }
+                    
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${timeString}</td>
+                        <td>${timeString}${sourceBadge}</td>
                         <td>${getLocationName(item.userLocation)}</td>
                         <td>${mainlandNodeName}</td>
                         <td><span class="${getLatencyClass(item.mainlandLatency)}">${item.mainlandLatency} ms</span></td>
@@ -2961,16 +3240,17 @@
 
         function mergeImportedData(importedData) {
             try {
-                const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
-                const newItems = importedData.filter(item => !existingTimestamps.has(item.timestamp));
+                const conflictResolution = 'newer'; // 导入时总是使用最新数据
+                const mergeResult = mergeLocalAndCloudData(state.historyData, importedData, conflictResolution);
                 
-                if (newItems.length > 0) {
-                    state.historyData.push(...newItems);
-                    state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                if (mergeResult.mergedData.length > state.historyData.length) {
+                    state.historyData = mergeResult.mergedData;
                     saveHistoryData();
                     renderHistoryTable();
                     updateChart();
                     updateDataCounts();
+                    
+                    showNotification(`成功合并 ${mergeResult.mergedData.length - state.historyData.length} 条新记录`, 'success');
                 }
             } catch (error) {
                 console.error("合并导入数据时出错:", error);
@@ -3409,7 +3689,8 @@
                     dataType: dataType,
                     data: data,
                     timestamp: timestamp,
-                    version: config.version
+                    version: config.version,
+                    dataVersion: config.dataVersion
                 };
                 
                 console.log('保存到 Cloudflare KV:', dataType, payload);
@@ -3442,16 +3723,16 @@
             }
         }
 
-        async function loadFromCloudflare(dataType) {
+        async function loadFromCloudflare(dataType, targetShareGroup = null) {
             if (!state.cloudflareConnected && !await testCloudflareConnection()) {
                 throw new Error('Cloudflare 未连接');
             }
             
             try {
-                const shareGroup = config.shareGroup || initShareGroup();
+                const shareGroup = targetShareGroup || config.shareGroup || initShareGroup();
                 
                 const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?shareGroup=${shareGroup}&dataType=${dataType}`
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?shareGroup=${encodeURIComponent(shareGroup)}&dataType=${dataType}`
                 );
                 
                 if (!response.ok) {
@@ -3488,9 +3769,13 @@
                 // 保存配置
                 await saveToCloudflare('config', config);
                 
-                // 保存历史数据
+                // 保存历史数据（清理数据源标记）
                 if (state.historyData.length > 0) {
-                    await saveToCloudflare('history', state.historyData);
+                    const cleanHistoryData = state.historyData.map(item => {
+                        const { dataSource, merged, originalSources, ...cleanItem } = item;
+                        return cleanItem;
+                    });
+                    await saveToCloudflare('history', cleanHistoryData);
                 }
                 
                 // 保存节点配置
@@ -3501,6 +3786,7 @@
                 // 记录同步时间
                 state.syncStatus.lastSyncTime = new Date().toISOString();
                 config.lastSyncTime = state.syncStatus.lastSyncTime;
+                config.dataVersion++;
                 saveConfig();
                 updateSyncStatusDisplay();
                 
@@ -3513,205 +3799,79 @@
             }
         }
 
-/**
- * 从云端同步数据（增强修复版）
- * 修复了去重逻辑错误，确保能完整合并本地与云端数据
- */
-async function syncFromCloud() {
-    console.group('【开始从云端同步数据】');
-    
-    try {
-        // 1. 检查共享组
-        if (!config.shareGroup) {
-            showNotification('请先设置共享组', 'error');
-            console.warn('同步中止：未设置共享组');
-            return false;
-        }
-
-        console.log(`目标共享组: ${config.shareGroup}, 设备ID: ${config.deviceId}`);
-
-        // 2. 从云端获取数据
-        showNotification('正在从云端获取数据...', 'info');
-        
-        let cloudHistory = null;
-        let cloudConfig = null;
-        let cloudNodes = null;
-
-        // 2.1 获取历史数据（这是核心）
-        try {
-            const historyResult = await loadFromCloudflare('history');
-            cloudHistory = historyResult;
-            console.log(`✓ 云端历史数据获取成功，条数: ${cloudHistory ? cloudHistory.length : 0}`);
-        } catch (historyError) {
-            console.error('获取云端历史数据失败:', historyError);
-            // 不立即退出，尝试获取其他数据
-        }
-
-        // 2.2 获取配置数据
-        try {
-            cloudConfig = await loadFromCloudflare('config');
-            console.log('✓ 云端配置数据获取成功');
-        } catch (configError) {
-            console.warn('获取云端配置失败:', configError);
-        }
-
-        // 2.3 获取节点数据
-        try {
-            cloudNodes = await loadFromCloudflare('nodes');
-            console.log('✓ 云端节点数据获取成功');
-        } catch (nodesError) {
-            console.warn('获取云端节点失败:', nodesError);
-        }
-
-        // 3. 核心：合并历史数据
-        if (cloudHistory && Array.isArray(cloudHistory) && cloudHistory.length > 0) {
-            console.log(`【数据合并阶段】本地: ${state.historyData.length} 条, 云端: ${cloudHistory.length} 条`);
+        async function syncFromCloud() {
+            if (state.syncStatus.isSyncing) {
+                showNotification('已有同步操作在进行中', 'warning');
+                return false;
+            }
             
-            // 3.1 创建复合键，确保记录唯一性（比单纯时间戳更可靠）
-            const createUniqueKey = (item) => {
-                // 使用时间戳、节点、延迟值共同生成唯一键
-                return `${item.timestamp}_${item.mainlandNode}_${item.taiwanNode}_${item.mainlandLatency}_${item.taiwanLatency}`;
-            };
-
-            // 3.2 建立本地数据映射
-            const localMap = new Map();
-            state.historyData.forEach(item => {
-                localMap.set(createUniqueKey(item), item);
-            });
-
-            // 3.3 建立云端数据映射
-            const cloudMap = new Map();
-            cloudHistory.forEach(item => {
-                cloudMap.set(createUniqueKey(item), item);
-            });
-
-            // 3.4 合并策略：优先保留云端数据，只添加本地独有的数据
-            const mergedMap = new Map([...cloudMap]); // 先放入所有云端数据
-            
-            // 添加本地有而云端没有的数据
-            localMap.forEach((item, key) => {
-                if (!cloudMap.has(key)) {
-                    mergedMap.set(key, item);
+            try {
+                state.syncStatus.isSyncing = true;
+                state.syncStatus.currentOperation = '从云端同步';
+                state.syncStatus.progress = 0;
+                updateSyncStatusDisplay();
+                
+                if (!config.shareGroup) {
+                    showNotification('请先设置共享组', 'error');
+                    state.syncStatus.isSyncing = false;
+                    return false;
                 }
-            });
-
-            console.log(`合并去重统计: 本地独有 ${state.historyData.length - cloudHistory.length} 条`);
-            console.log(`最终合并数量: ${mergedMap.size} 条 (云端:${cloudMap.size}, 本地新增:${mergedMap.size - cloudMap.size})`);
-
-            // 3.5 转换回数组并排序
-            const mergedArray = Array.from(mergedMap.values());
-            mergedArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-            
-            // 3.6 更新本地状态
-            const oldCount = state.historyData.length;
-            state.historyData = mergedArray;
-            
-            // 保存到本地存储
-            saveHistoryData();
-            
-            console.log(`✓ 历史数据合并完成: ${oldCount} -> ${state.historyData.length} 条`);
-            
-            if (state.historyData.length > oldCount) {
-                showNotification(`历史数据已更新，新增 ${state.historyData.length - oldCount} 条记录`, 'success');
-            } else if (state.historyData.length < oldCount) {
-                showNotification(`历史数据已更新，当前共 ${state.historyData.length} 条记录`, 'success');
-            } else {
-                showNotification('数据已是最新，无需更新', 'info');
-            }
-        } else {
-            console.log('云端无历史数据，跳过合并');
-            showNotification('云端暂无历史数据', 'info');
-        }
-
-        // 4. 合并配置数据（智能合并，不覆盖重要设置）
-        if (cloudConfig) {
-            console.log('【合并配置数据】');
-            
-            // 保留当前共享组和设备ID
-            const currentShareGroup = config.shareGroup;
-            const currentDeviceId = config.deviceId;
-            const currentUserLocation = config.userLocation;
-            
-            // 智能合并：以云端配置为基础，但保留本地的关键设置
-            const mergedConfig = {
-                ...cloudConfig,           // 云端配置优先
-                shareGroup: currentShareGroup, // 但保留当前共享组
-                deviceId: currentDeviceId,     // 保留当前设备ID
-                userLocation: currentUserLocation || cloudConfig.userLocation, // 优先本地位置
-            };
-            
-            // 合并节点配置（云端基础+本地自定义）
-            if (cloudConfig.nodes && config.nodes) {
-                mergedConfig.nodes = { ...cloudConfig.nodes, ...config.nodes };
-            }
-            
-            Object.assign(config, mergedConfig);
-            saveConfig();
-            console.log('✓ 配置数据合并完成');
-        }
-
-        // 5. 合并节点数据
-        if (cloudNodes) {
-            console.log('【合并节点数据】');
-            config.nodes = { ...cloudNodes, ...config.nodes }; // 云端基础+本地自定义
-            saveConfig();
-            updateNodeSelectOptions();
-            renderNodesList();
-            console.log('✓ 节点数据合并完成');
-        }
-
-        // 6. 更新UI和状态
-        console.log('【更新界面】');
-        renderHistoryTable();
-        updateChart();
-        updateDataCounts();
-        updateDataStats();
-        
-        // 更新同步状态
-        state.syncStatus.lastSyncTime = new Date().toISOString();
-        config.lastSyncTime = state.syncStatus.lastSyncTime;
-        saveConfig();
-        
-        // 记录同步历史
-        addSyncHistory('从云端同步', 'success', state.historyData.length, 0);
-        
-        console.log(`✓ 同步流程全部完成，最终数据量: ${state.historyData.length} 条`);
-        console.groupEnd();
-        
-        return true;
-
-    } catch (error) {
-        console.error('同步过程中发生致命错误:', error);
-        console.groupEnd();
-        
-        showNotification(`同步失败: ${error.message}`, 'error');
-        
-        // 记录失败历史
-        addSyncHistory('从云端同步', 'error', 0, 0, error.message);
-        
-        return false;
-    }
-}
+                
+                showNotification('正在从云端同步数据...', 'info');
+                console.log("从云端获取共享组:", config.shareGroup);
+                
+                // 更新进度
+                state.syncStatus.progress = 20;
+                updateSyncStatusDisplay();
+                
+                // 1. 同步配置
+                const cloudConfig = await loadFromCloudflare('config');
+                if (cloudConfig) {
+                    console.log("获取到云端配置");
                     
-                 
+                    // 智能合并配置
+                    const mergedConfig = mergeConfigData(config, cloudConfig);
+                    Object.assign(config, mergedConfig);
                     
-                    // 按时间戳排序
-                    mergedData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                    saveConfig();
+                    state.syncStatus.progress = 40;
+                    updateSyncStatusDisplay();
+                    showNotification('配置已从云端同步', 'success');
+                }
+                
+                // 2. 同步历史数据
+                const cloudHistory = await loadFromCloudflare('history');
+                if (cloudHistory && Array.isArray(cloudHistory)) {
+                    console.log("获取到云端历史数据:", cloudHistory.length);
+                    
+                    // 获取冲突解决策略
+                    const conflictResolution = CLOUDFLARE_CONFIG.SYNC_SETTINGS.conflictResolution;
+                    
+                    // 智能合并数据
+                    const mergeResult = mergeLocalAndCloudData(state.historyData, cloudHistory, conflictResolution);
                     
                     // 更新本地数据
-                    const oldCount = state.historyData.length;
-                    state.historyData = mergedData;
-                    const newCount = state.historyData.length;
+                    state.historyData = mergeResult.mergedData;
                     
-                    if (newCount > oldCount) {
-                        saveHistoryData();
-                        showNotification(`历史数据已同步，新增 ${newCount - oldCount} 条记录`, 'success');
-                    } else if (newCount < oldCount) {
-                        saveHistoryData();
-                        showNotification(`历史数据已同步，本地数据有更新`, 'success');
+                    // 保存合并后的数据
+                    saveHistoryData();
+                    
+                    // 显示合并日志
+                    showMergeLog(mergeResult, '云端同步');
+                    
+                    state.syncStatus.progress = 80;
+                    updateSyncStatusDisplay();
+                    
+                    if (mergeResult.stats.newFromCloud > 0) {
+                        showNotification(`历史数据已同步，新增 ${mergeResult.stats.newFromCloud} 条记录`, 'success');
+                    } else if (mergeResult.conflicts > 0) {
+                        showNotification(`历史数据已同步，解决 ${mergeResult.conflicts} 个冲突`, 'success');
                     } else {
                         showNotification('历史数据已是最新，无需同步', 'info');
                     }
+                    
+                    state.syncStatus.syncStats.conflicts = mergeResult.conflicts;
+                    state.syncStatus.syncStats.downloaded = cloudHistory.length;
                 }
                 
                 // 3. 同步节点
@@ -3722,23 +3882,39 @@ async function syncFromCloud() {
                     showNotification('节点数据已同步', 'success');
                 }
                 
+                // 更新进度和状态
+                state.syncStatus.progress = 100;
+                state.syncStatus.isSyncing = false;
+                state.syncStatus.lastSyncTime = new Date().toISOString();
+                state.syncStatus.lastError = null;
+                state.syncStatus.currentOperation = null;
+                
+                config.lastSyncTime = state.syncStatus.lastSyncTime;
+                saveConfig();
+                
                 // 更新UI
                 updateNodeSelectOptions();
                 renderNodesList();
                 renderHistoryTable();
                 updateChart();
                 updateDataCounts();
-                
-                // 更新同步状态
-                state.syncStatus.lastSyncTime = new Date().toISOString();
-                config.lastSyncTime = state.syncStatus.lastSyncTime;
-                saveConfig();
                 updateSyncStatusDisplay();
                 updateSyncDataStatus();
+                
+                // 记录同步历史
+                addSyncHistory('从云端同步', 'success', state.historyData.length, 0);
                 
                 return true;
             } catch (error) {
                 console.error("从云端同步失败:", error);
+                
+                state.syncStatus.isSyncing = false;
+                state.syncStatus.lastError = error.message;
+                state.syncStatus.currentOperation = null;
+                
+                addSyncHistory('从云端同步', 'error', 0, 0, error.message);
+                
+                updateSyncStatusDisplay();
                 showNotification('同步失败: ' + error.message, 'error');
                 return false;
             }
@@ -3764,7 +3940,8 @@ async function syncFromCloud() {
                     nodes: config.nodes,
                     timestamp: new Date().toISOString(),
                     version: config.version,
-                    shareGroup: config.shareGroup
+                    shareGroup: config.shareGroup,
+                    dataVersion: config.dataVersion
                 };
                 
                 const jsonData = JSON.stringify(backupData, null, 2);
@@ -3799,15 +3976,19 @@ async function syncFromCloud() {
                             
                             if (confirm('确定要恢复备份吗？当前数据将被覆盖。')) {
                                 if (backupData.config) {
-                                    Object.assign(config, backupData.config);
+                                    // 智能合并配置而不是直接覆盖
+                                    const mergedConfig = mergeConfigData(config, backupData.config);
+                                    Object.assign(config, mergedConfig);
                                 }
                                 
                                 if (backupData.history) {
-                                    state.historyData = backupData.history;
+                                    // 智能合并历史数据
+                                    const mergeResult = mergeLocalAndCloudData(state.historyData, backupData.history, 'merge');
+                                    state.historyData = mergeResult.mergedData;
                                 }
                                 
                                 if (backupData.nodes) {
-                                    config.nodes = backupData.nodes;
+                                    config.nodes = { ...backupData.nodes, ...config.nodes };
                                 }
                                 
                                 if (backupData.shareGroup) {
@@ -3863,30 +4044,30 @@ async function syncFromCloud() {
                 
                 showNotification(`正在获取共享组 ${mergeShareGroup} 的数据...`, 'info');
                 
-                // 从云端获取其他共享组的数据
-                const originalShareGroup = config.shareGroup;
-                config.shareGroup = mergeShareGroup;
-                CLOUDFLARE_CONFIG.SHARE_GROUP = mergeShareGroup;
-                
                 try {
-                    const otherShareHistory = await loadFromCloudflare('history');
-                    
-                    // 恢复当前共享组
-                    config.shareGroup = originalShareGroup;
-                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
+                    // 从云端获取其他共享组的数据（使用新的loadFromCloudflare函数）
+                    const otherShareHistory = await loadFromCloudflare('history', mergeShareGroup);
                     
                     if (otherShareHistory && Array.isArray(otherShareHistory)) {
-                        const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
-                        const newItems = otherShareHistory.filter(item => !existingTimestamps.has(item.timestamp));
+                        // 智能合并数据
+                        const mergeResult = mergeLocalAndCloudData(state.historyData, otherShareHistory, 'merge');
                         
-                        if (newItems.length > 0) {
-                            state.historyData.push(...newItems);
-                            state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                            saveHistoryData();
-                            renderHistoryTable();
-                            updateChart();
-                            updateDataCounts();
-                            showNotification(`已合并 ${newItems.length} 条来自共享组 ${mergeShareGroup} 的数据`, 'success');
+                        // 更新本地数据
+                        state.historyData = mergeResult.mergedData;
+                        saveHistoryData();
+                        
+                        // 显示合并日志
+                        showMergeLog(mergeResult, `共享组 ${mergeShareGroup}`);
+                        
+                        // 更新UI
+                        renderHistoryTable();
+                        updateChart();
+                        updateDataCounts();
+                        
+                        if (mergeResult.stats.newFromCloud > 0) {
+                            showNotification(`已合并 ${mergeResult.stats.newFromCloud} 条来自共享组 ${mergeShareGroup} 的数据`, 'success');
+                        } else if (mergeResult.conflicts > 0) {
+                            showNotification(`已合并数据，解决 ${mergeResult.conflicts} 个冲突`, 'success');
                         } else {
                             showNotification('没有新的数据可以合并', 'info');
                         }
@@ -3894,10 +4075,8 @@ async function syncFromCloud() {
                         showNotification(`未找到共享组 ${mergeShareGroup} 的数据`, 'warning');
                     }
                 } catch (error) {
-                    // 恢复当前共享组
-                    config.shareGroup = originalShareGroup;
-                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
-                    throw error;
+                    console.error("获取共享组数据时出错:", error);
+                    showNotification(`获取共享组 ${mergeShareGroup} 数据失败: ${error.message}`, 'error');
                 }
             } catch (error) {
                 console.error("合并共享组数据时出错:", error);
@@ -3922,17 +4101,9 @@ async function syncFromCloud() {
                 
                 showNotification(`正在获取共享组 ${compareShareGroup} 的数据进行比较...`, 'info');
                 
-                // 从云端获取其他共享组的数据
-                const originalShareGroup = config.shareGroup;
-                config.shareGroup = compareShareGroup;
-                CLOUDFLARE_CONFIG.SHARE_GROUP = compareShareGroup;
-                
                 try {
-                    const otherShareHistory = await loadFromCloudflare('history');
-                    
-                    // 恢复当前共享组
-                    config.shareGroup = originalShareGroup;
-                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
+                    // 从云端获取其他共享组的数据
+                    const otherShareHistory = await loadFromCloudflare('history', compareShareGroup);
                     
                     if (otherShareHistory && Array.isArray(otherShareHistory)) {
                         const currentAvg = state.historyData.length > 0 ? 
@@ -3941,16 +4112,26 @@ async function syncFromCloud() {
                         const compareAvg = otherShareHistory.length > 0 ? 
                             Math.round(otherShareHistory.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / otherShareHistory.length) : 0;
                         
+                        const currentStdDev = state.historyData.length > 0 ? 
+                            Math.round(Math.sqrt(state.historyData.reduce((sq, item) => sq + Math.pow((item.mainlandLatency + item.taiwanLatency) / 2 - currentAvg, 2), 0) / state.historyData.length)) : 0;
+                        
+                        const compareStdDev = otherShareHistory.length > 0 ? 
+                            Math.round(Math.sqrt(otherShareHistory.reduce((sq, item) => sq + Math.pow((item.mainlandLatency + item.taiwanLatency) / 2 - compareAvg, 2), 0) / otherShareHistory.length)) : 0;
+                        
                         const comparison = `
                             共享组数据对比结果:
                             
-                            当前共享组 (${config.shareGroup}):
+                            当前共享组 (${config.shareGroup || '未设置'}):
                             - 数据点数: ${state.historyData.length}
                             - 平均延迟: ${currentAvg} ms
+                            - 延迟标准差: ${currentStdDev} ms
+                            - 数据质量: ${currentAvg < 100 ? '优秀' : currentAvg < 200 ? '良好' : '一般'}
                             
                             对比共享组 (${compareShareGroup}):
                             - 数据点数: ${otherShareHistory.length}
                             - 平均延迟: ${compareAvg} ms
+                            - 延迟标准差: ${compareStdDev} ms
+                            - 数据质量: ${compareAvg < 100 ? '优秀' : compareAvg < 200 ? '良好' : '一般'}
                             
                             对比结果: ${currentAvg < compareAvg ? '当前共享组网络质量更好' : currentAvg > compareAvg ? '对比共享组网络质量更好' : '网络质量相当'}
                         `;
@@ -3960,10 +4141,8 @@ async function syncFromCloud() {
                         showNotification(`未找到共享组 ${compareShareGroup} 的数据`, 'warning');
                     }
                 } catch (error) {
-                    // 恢复当前共享组
-                    config.shareGroup = originalShareGroup;
-                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
-                    throw error;
+                    console.error("获取对比数据时出错:", error);
+                    showNotification(`获取共享组 ${compareShareGroup} 数据失败: ${error.message}`, 'error');
                 }
             } catch (error) {
                 console.error("比较共享组数据时出错:", error);
@@ -3980,7 +4159,8 @@ async function syncFromCloud() {
                     history: state.historyData,
                     nodes: config.nodes,
                     timestamp: new Date().toISOString(),
-                    version: config.version
+                    version: config.version,
+                    dataVersion: config.dataVersion
                 };
                 
                 const jsonData = JSON.stringify(allData, null, 2);
@@ -4011,18 +4191,15 @@ async function syncFromCloud() {
                     e.preventDefault();
                     const tabId = this.getAttribute('data-tab');
                     
-                    // 移除所有active类
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                     
-                    // 添加active类到当前标签
                     this.classList.add('active');
                     const tabContent = document.getElementById(tabId);
                     if (tabContent) {
                         tabContent.classList.add('active');
                     }
                     
-                    // 如果切换到用户管理标签页，则刷新共享组选项
                     if (tabId === 'userid' || tabId === 'cloudflare') {
                         renderShareGroupOptions();
                     }
@@ -4571,7 +4748,8 @@ async function syncFromCloud() {
                     mainlandLatency,
                     taiwanNode: config.defaultNodes.taiwan,
                     taiwanLatency,
-                    period
+                    period,
+                    dataSource: 'local'
                 };
                 
                 state.currentData.push(testResult);
