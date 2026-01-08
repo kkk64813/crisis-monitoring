@@ -3731,6 +3731,8 @@
             try {
                 const shareGroup = targetShareGroup || config.shareGroup || initShareGroup();
                 
+                console.log(`从云端加载数据: ${dataType}, 共享组: ${shareGroup}`);
+                
                 const response = await fetch(
                     `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?shareGroup=${encodeURIComponent(shareGroup)}&dataType=${dataType}`
                 );
@@ -3743,12 +3745,29 @@
                 const result = await response.json();
                 console.log(`从 Cloudflare KV 加载数据: ${dataType}`, result);
                 
+                // 关键修正：Worker 返回的数据结构是 {success: true, data: {data: [...], ...}}
+                // 我们需要从 result.data.data 获取实际数据
+                let actualData = null;
+                
+                if (result.data && result.data.data !== undefined) {
+                    actualData = result.data.data;
+                    console.log(`成功获取 ${dataType} 数据:`, actualData ? (Array.isArray(actualData) ? `数组，长度: ${actualData.length}` : '对象') : 'null');
+                } else if (result.data !== undefined) {
+                    // 如果 result.data 已经是实际数据（兼容旧版）
+                    actualData = result.data;
+                    console.log(`使用兼容模式获取 ${dataType} 数据:`, actualData ? (Array.isArray(actualData) ? `数组，长度: ${actualData.length}` : '对象') : 'null');
+                }
+                
+                if (actualData === null) {
+                    console.warn(`未找到 ${dataType} 类型的数据，可能为空`);
+                }
+                
                 CLOUDFLARE_CONFIG.LAST_SYNC = new Date().toISOString();
                 localStorage.setItem('latency_monitor_last_sync', CLOUDFLARE_CONFIG.LAST_SYNC);
                 
                 updateLastSyncTime();
                 
-                return result.data;
+                return actualData;
             } catch (error) {
                 console.error('从 Cloudflare KV 加载失败:', error);
                 throw error;
@@ -3827,7 +3846,7 @@
                 // 1. 同步配置
                 const cloudConfig = await loadFromCloudflare('config');
                 if (cloudConfig) {
-                    console.log("获取到云端配置");
+                    console.log("获取到云端配置", cloudConfig);
                     
                     // 智能合并配置
                     const mergedConfig = mergeConfigData(config, cloudConfig);
@@ -3841,6 +3860,10 @@
                 
                 // 2. 同步历史数据
                 const cloudHistory = await loadFromCloudflare('history');
+                console.log('从云端加载的历史数据:', cloudHistory);
+                console.log('数据类型:', typeof cloudHistory);
+                console.log('是否数组:', Array.isArray(cloudHistory));
+                
                 if (cloudHistory && Array.isArray(cloudHistory)) {
                     console.log("获取到云端历史数据:", cloudHistory.length);
                     
@@ -3872,6 +3895,9 @@
                     
                     state.syncStatus.syncStats.conflicts = mergeResult.conflicts;
                     state.syncStatus.syncStats.downloaded = cloudHistory.length;
+                } else {
+                    console.warn('云端历史数据为空或不是数组:', cloudHistory);
+                    showNotification('云端历史数据为空或格式错误', 'warning');
                 }
                 
                 // 3. 同步节点
@@ -4045,7 +4071,7 @@
                 showNotification(`正在获取共享组 ${mergeShareGroup} 的数据...`, 'info');
                 
                 try {
-                    // 从云端获取其他共享组的数据（使用新的loadFromCloudflare函数）
+                    // 从云端获取其他共享组的数据
                     const otherShareHistory = await loadFromCloudflare('history', mergeShareGroup);
                     
                     if (otherShareHistory && Array.isArray(otherShareHistory)) {
