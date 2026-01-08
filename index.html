@@ -915,6 +915,50 @@
             border-radius: 6px;
             border-left: 4px solid var(--primary-color);
         }
+        
+        /* 新增：修复问题3，简化KV状态页面样式 */
+        .kv-simple-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .kv-simple-stat {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        
+        .kv-simple-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .kv-simple-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+        
+        /* 新增：简化的用户共享界面 */
+        .simple-share-panel {
+            background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .share-instructions {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            border-left: 4px solid var(--secondary-color);
+        }
     </style>
 </head>
 <body>
@@ -961,10 +1005,7 @@
             <div class="tab" data-tab="userid">
                 <i class="fas fa-users"></i> 用户管理
             </div>
-            <!-- 新增的KV状态标签 -->
-            <div class="tab" data-tab="kv-status">
-                <i class="fas fa-database"></i> KV状态
-            </div>
+            <!-- 移除KV状态标签，因为无法获取真实数据 -->
         </div>
 
         <!-- 仪表板标签 -->
@@ -1453,59 +1494,32 @@
 
         <!-- Cloudflare 云端同步标签 - 增强版 -->
         <div id="cloudflare" class="tab-content">
-            <!-- 同步状态监控面板 -->
-            <div class="sync-status-panel">
+            <!-- 简化的多设备共享面板 -->
+            <div class="simple-share-panel">
                 <div class="card-title">
-                    <span><i class="fas fa-sync-alt"></i> 同步状态监控</span>
-                    <div>
-                        <button id="refresh-sync-status" class="secondary">
-                            <i class="fas fa-redo"></i> 刷新状态
-                        </button>
+                    <span><i class="fas fa-share-alt"></i> 多设备数据共享</span>
+                </div>
+                
+                <div class="user-id-selector">
+                    <h4><i class="fas fa-id-card"></i> 选择共享组</h4>
+                    <p style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.95rem;">
+                        选择相同的共享组，即可在不同设备间自动同步数据
+                    </p>
+                    <div id="share-group-options">
+                        <!-- 选项将通过JavaScript动态生成 -->
+                    </div>
+                    <div class="user-id-note">
+                        <i class="fas fa-info-circle"></i> 提示：在所有设备上选择相同的共享组，数据将自动同步
                     </div>
                 </div>
                 
-                <div class="sync-status-grid">
-                    <div class="sync-status-item" id="sync-overall-status">
-                        <h4><i class="fas fa-cloud"></i> 整体状态</h4>
-                        <p style="font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">--</p>
-                        <p style="color: #6b7280; font-size: 0.9rem;">最后同步: <span id="sync-last-time">从未同步</span></p>
-                    </div>
-                    
-                    <div class="sync-status-item" id="sync-connection-status">
-                        <h4><i class="fas fa-plug"></i> 连接状态</h4>
-                        <p style="font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">--</p>
-                        <p style="color: #6b7280; font-size: 0.9rem;">延迟: <span id="sync-latency">-- ms</span></p>
-                    </div>
-                    
-                    <div class="sync-status-item" id="sync-data-status">
-                        <h4><i class="fas fa-database"></i> 数据状态</h4>
-                        <p style="font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">--</p>
-                        <p style="color: #6b7280; font-size: 0.9rem;">本地/云端: <span id="sync-data-count">0/0</span></p>
-                    </div>
-                    
-                    <div class="sync-status-item" id="sync-progress-status">
-                        <h4><i class="fas fa-spinner"></i> 同步进度</h4>
-                        <div class="sync-progress-bar">
-                            <div class="sync-progress-fill" id="sync-progress-fill" style="width: 0%"></div>
-                        </div>
-                        <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.25rem;">状态: <span id="sync-progress-text">空闲</span></p>
-                    </div>
-                </div>
-                
-                <!-- 同步操作按钮 -->
-                <div class="sync-action-buttons">
-                    <button id="full-sync" class="success">
-                        <i class="fas fa-sync-alt"></i> 完整同步
-                    </button>
-                    <button id="sync-upload-only" class="secondary">
-                        <i class="fas fa-cloud-upload-alt"></i> 仅上传
-                    </button>
-                    <button id="sync-download-only" class="secondary">
-                        <i class="fas fa-cloud-download-alt"></i> 仅下载
-                    </button>
-                    <button id="validate-sync" class="warning">
-                        <i class="fas fa-check-circle"></i> 验证数据
-                    </button>
+                <div class="share-instructions">
+                    <h4><i class="fas fa-lightbulb"></i> 使用方法</h4>
+                    <p>1. 选择共享组（如 Group_001）</p>
+                    <p>2. 点击"保存共享组"按钮</p>
+                    <p>3. 在其他设备上重复步骤1-2</p>
+                    <p>4. 使用"同步到云端"和"从云端同步"按钮同步数据</p>
+                    <p>5. 数据将自动在所有设备间共享</p>
                 </div>
             </div>
             
@@ -1518,20 +1532,6 @@
                         将数据同步到 Cloudflare Workers KV，实现跨设备访问和数据备份
                     </p>
                     
-                    <!-- 用户ID下拉选择器 -->
-                    <div class="user-id-selector">
-                        <h4><i class="fas fa-id-card"></i> 选择用户ID</h4>
-                        <p style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.95rem;">
-                            选择相同的用户ID可以在不同设备间共享数据
-                        </p>
-                        <div id="user-id-options">
-                            <!-- 选项将通过JavaScript动态生成 -->
-                        </div>
-                        <div class="user-id-note">
-                            <i class="fas fa-info-circle"></i> 提示：在不同设备上选择相同的用户ID，数据将自动同步共享
-                        </div>
-                    </div>
-                    
                     <div class="form-group">
                         <label for="cloudflare-worker-url">Cloudflare Worker URL</label>
                         <input type="text" id="cloudflare-worker-url" value="https://latency-monitor-api.mgjack13.workers.dev" readonly>
@@ -1539,11 +1539,11 @@
                     </div>
                     
                     <div class="button-group">
-                        <button id="save-user-id" class="success">
-                            <i class="fas fa-save"></i> 保存用户ID
+                        <button id="save-share-group" class="success">
+                            <i class="fas fa-save"></i> 保存共享组
                         </button>
-                        <button id="generate-user-id" class="secondary">
-                            <i class="fas fa-id-card"></i> 生成新ID
+                        <button id="generate-share-group" class="secondary">
+                            <i class="fas fa-id-card"></i> 生成新组
                         </button>
                     </div>
                 </div>
@@ -1607,54 +1607,59 @@
                 </div>
             </div>
             
-            <!-- 数据一致性检查面板 -->
-            <div class="data-consistency-panel">
+            <!-- 同步状态监控面板 -->
+            <div class="sync-status-panel">
                 <div class="card-title">
-                    <span><i class="fas fa-check-double"></i> 数据一致性检查</span>
+                    <span><i class="fas fa-sync-alt"></i> 同步状态监控</span>
                     <div>
-                        <button id="check-consistency" class="secondary">
-                            <i class="fas fa-search"></i> 检查一致性
+                        <button id="refresh-sync-status" class="secondary">
+                            <i class="fas fa-redo"></i> 刷新状态
                         </button>
                     </div>
                 </div>
                 
-                <div class="consistency-status" id="consistency-status">
-                    <i class="fas fa-info-circle"></i>
-                    <span>数据一致性状态: 未检查</span>
+                <div class="sync-status-grid">
+                    <div class="sync-status-item" id="sync-overall-status">
+                        <h4><i class="fas fa-cloud"></i> 整体状态</h4>
+                        <p style="font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">--</p>
+                        <p style="color: #6b7280; font-size: 0.9rem;">最后同步: <span id="sync-last-time">从未同步</span></p>
+                    </div>
+                    
+                    <div class="sync-status-item" id="sync-connection-status">
+                        <h4><i class="fas fa-plug"></i> 连接状态</h4>
+                        <p style="font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">--</p>
+                        <p style="color: #6b7280; font-size: 0.9rem;">延迟: <span id="sync-latency">-- ms</span></p>
+                    </div>
+                    
+                    <div class="sync-status-item" id="sync-data-status">
+                        <h4><i class="fas fa-database"></i> 数据状态</h4>
+                        <p style="font-size: 1.2rem; font-weight: 600; margin: 0.5rem 0;">--</p>
+                        <p style="color: #6b7280; font-size: 0.9rem;">本地/云端: <span id="sync-data-count">0/0</span></p>
+                    </div>
+                    
+                    <div class="sync-status-item" id="sync-progress-status">
+                        <h4><i class="fas fa-spinner"></i> 同步进度</h4>
+                        <div class="sync-progress-bar">
+                            <div class="sync-progress-fill" id="sync-progress-fill" style="width: 0%"></div>
+                        </div>
+                        <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.25rem;">状态: <span id="sync-progress-text">空闲</span></p>
+                    </div>
                 </div>
                 
-                <div class="consistency-details" id="consistency-details" style="display: none;">
-                    <h4>一致性检查结果</h4>
-                    <table>
-                        <tr>
-                            <td>本地数据总数:</td>
-                            <td id="local-data-total">0</td>
-                        </tr>
-                        <tr>
-                            <td>云端数据总数:</td>
-                            <td id="cloud-data-total">0</td>
-                        </tr>
-                        <tr>
-                            <td>缺失数据:</td>
-                            <td id="missing-data">0</td>
-                        </tr>
-                        <tr>
-                            <td>冲突数据:</td>
-                            <td id="conflict-data">0</td>
-                        </tr>
-                        <tr>
-                            <td>一致性得分:</td>
-                            <td id="consistency-score">0%</td>
-                        </tr>
-                    </table>
-                    <div class="button-group" style="margin-top: 1rem;">
-                        <button id="resolve-inconsistencies" class="success">
-                            <i class="fas fa-hammer"></i> 修复不一致
-                        </button>
-                        <button id="view-conflicts" class="warning">
-                            <i class="fas fa-exclamation-triangle"></i> 查看冲突
-                        </button>
-                    </div>
+                <!-- 同步操作按钮 -->
+                <div class="sync-action-buttons">
+                    <button id="full-sync" class="success">
+                        <i class="fas fa-sync-alt"></i> 完整同步
+                    </button>
+                    <button id="sync-upload-only" class="secondary">
+                        <i class="fas fa-cloud-upload-alt"></i> 仅上传
+                    </button>
+                    <button id="sync-download-only" class="secondary">
+                        <i class="fas fa-cloud-download-alt"></i> 仅下载
+                    </button>
+                    <button id="validate-sync" class="warning">
+                        <i class="fas fa-check-circle"></i> 验证数据
+                    </button>
                 </div>
             </div>
             
@@ -1702,76 +1707,57 @@
         <div id="userid" class="tab-content">
             <div class="card">
                 <div class="card-title">
-                    <span><i class="fas fa-user-cog"></i> 用户ID管理</span>
+                    <span><i class="fas fa-user-cog"></i> 用户管理</span>
                 </div>
                 
                 <div class="user-id-management">
                     <h3 style="margin-bottom: 1rem; color: var(--dark-color);">
-                        <i class="fas fa-id-card"></i> 当前用户ID
+                        <i class="fas fa-id-card"></i> 当前共享组
                     </h3>
                     
-                    <!-- 用户ID下拉选择器 -->
+                    <!-- 共享组选择器 -->
                     <div class="user-id-selector">
-                        <h4><i class="fas fa-users"></i> 选择用户ID</h4>
+                        <h4><i class="fas fa-users"></i> 选择共享组</h4>
                         <p style="margin-bottom: 0.5rem; color: #6b7280; font-size: 0.95rem;">
-                            选择相同的用户ID可以在不同设备间共享数据
+                            选择相同的共享组可以在不同设备间共享数据
                         </p>
                         <div id="user-id-selector-options">
                             <!-- 选项将通过JavaScript动态生成 -->
                         </div>
                         <div class="user-id-note">
-                            <i class="fas fa-info-circle"></i> 提示：选择"Group_001"到"Group_005"中的相同ID，即可在不同设备间共享数据
+                            <i class="fas fa-info-circle"></i> 提示：选择"Group_001"到"Group_005"中的相同组，即可在不同设备间共享数据
                         </div>
                     </div>
                     
                     <div class="user-id-actions">
-                        <button id="set-custom-user-id" class="success">
-                            <i class="fas fa-save"></i> 保存用户ID
+                        <button id="set-share-group" class="success">
+                            <i class="fas fa-save"></i> 保存共享组
                         </button>
-                        <button id="generate-random-user-id" class="secondary">
-                            <i class="fas fa-random"></i> 生成随机ID
+                        <button id="generate-share-group-random" class="secondary">
+                            <i class="fas fa-random"></i> 生成随机组
                         </button>
-                        <button id="reset-user-id" class="warning">
+                        <button id="reset-share-group" class="warning">
                             <i class="fas fa-undo"></i> 重置为默认
                         </button>
                     </div>
                     
                     <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                        <p><strong>当前用户ID:</strong> <span id="current-user-id" style="font-weight: bold; color: var(--primary-color);">未设置</span></p>
-                        <p><strong>用户ID类型:</strong> <span id="user-id-type">默认随机ID</span></p>
-                        <p><strong>设备数量:</strong> <span id="device-count">1</span> 台</p>
+                        <p><strong>当前共享组:</strong> <span id="current-share-group" style="font-weight: bold; color: var(--primary-color);">未设置</span></p>
+                        <p><strong>组类型:</strong> <span id="share-group-type">默认分组</span></p>
+                        <p><strong>数据共享:</strong> <span id="data-sharing-status">未启用</span></p>
                     </div>
                 </div>
                 
-                <!-- 设备管理面板 -->
-                <div class="device-management-panel">
-                    <h3 style="margin-bottom: 1rem; color: var(--dark-color);">
-                        <i class="fas fa-laptop"></i> 设备管理
-                    </h3>
-                    
-                    <div class="device-list" id="device-list">
-                        <!-- 设备卡片将通过JavaScript动态添加 -->
-                    </div>
-                    
-                    <div class="button-group" style="margin-top: 1rem;">
-                        <button id="refresh-devices" class="secondary">
-                            <i class="fas fa-redo"></i> 刷新设备列表
-                        </button>
-                        <button id="add-device" class="success">
-                            <i class="fas fa-plus"></i> 添加设备
-                        </button>
-                    </div>
-                </div>
-                
+                <!-- 简化的数据整合功能 -->
                 <div class="data-integration">
                     <h3 style="margin-bottom: 1rem; color: var(--dark-color);">
                         <i class="fas fa-database"></i> 数据整合功能
                     </h3>
                     
                     <div class="form-group">
-                        <label for="merge-user-id">合并其他用户ID的数据</label>
-                        <select id="merge-user-id">
-                            <option value="">选择要合并的用户ID</option>
+                        <label for="merge-share-group">合并其他共享组的数据</label>
+                        <select id="merge-share-group">
+                            <option value="">选择要合并的共享组</option>
                             <option value="Group_001">Group_001</option>
                             <option value="Group_002">Group_002</option>
                             <option value="Group_003">Group_003</option>
@@ -1779,29 +1765,29 @@
                             <option value="Group_005">Group_005</option>
                         </select>
                         <small style="color: #6b7280; display: block; margin-top: 5px;">
-                            选择其他用户ID，将其数据合并到当前数据中（用于整合不同用户的数据）
+                            选择其他共享组，将其数据合并到当前数据中
                         </small>
                     </div>
                     
                     <div class="user-id-actions">
-                        <button id="merge-user-data" class="success">
-                            <i class="fas fa-merge"></i> 合并用户数据
+                        <button id="merge-share-data" class="success">
+                            <i class="fas fa-merge"></i> 合并组数据
                         </button>
-                        <button id="compare-user-data" class="secondary">
-                            <i class="fas fa-balance-scale"></i> 比较用户数据
+                        <button id="compare-share-data" class="secondary">
+                            <i class="fas fa-balance-scale"></i> 比较组数据
                         </button>
-                        <button id="export-user-data" class="warning">
-                            <i class="fas fa-download"></i> 导出当前用户数据
+                        <button id="export-all-data" class="warning">
+                            <i class="fas fa-download"></i> 导出所有数据
                         </button>
                     </div>
                     
                     <div style="margin-top: 1.5rem;">
                         <p><strong>说明:</strong></p>
                         <ul style="padding-left: 1.5rem; margin-bottom: 1rem;">
-                            <li><strong>设置用户ID</strong>: 在不同设备上使用相同的用户ID，可以实现数据自动同步</li>
-                            <li><strong>合并用户数据</strong>: 将其他用户的数据合并到当前数据中，用于整合分析</li>
-                            <li><strong>比较用户数据</strong>: 对比不同用户的数据统计信息</li>
-                            <li><strong>导出用户数据</strong>: 导出当前用户的所有数据，包括配置和历史记录</li>
+                            <li><strong>设置共享组</strong>: 在不同设备上使用相同的共享组，数据将自动同步</li>
+                            <li><strong>合并组数据</strong>: 将其他共享组的数据合并到当前数据中</li>
+                            <li><strong>比较组数据</strong>: 对比不同共享组的数据统计信息</li>
+                            <li><strong>导出所有数据</strong>: 导出当前共享组的所有数据</li>
                         </ul>
                     </div>
                 </div>
@@ -1809,14 +1795,10 @@
             
             <div class="card">
                 <div class="card-title">
-                    <span><i class="fas fa-chart-bar"></i> 用户数据统计</span>
+                    <span><i class="fas fa-chart-bar"></i> 数据统计</span>
                 </div>
                 
                 <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-value" id="total-users">1</div>
-                        <div class="stat-label">用户总数</div>
-                    </div>
                     <div class="stat-box">
                         <div class="stat-value" id="total-data-points">0</div>
                         <div class="stat-label">总数据点数</div>
@@ -1826,216 +1808,21 @@
                         <div class="stat-label">平均延迟</div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-value" id="data-coverage">0%</div>
-                        <div class="stat-label">数据覆盖率</div>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 1.5rem;">
-                    <h4>用户数据列表</h4>
-                    <div style="overflow-x: auto; margin-top: 1rem;">
-                        <table class="history-table">
-                            <thead>
-                                <tr>
-                                    <th>用户ID</th>
-                                    <th>数据点数</th>
-                                    <th>最后同步</th>
-                                    <th>设备数量</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="user-data-list">
-                                <tr>
-                                    <td colspan="5" style="text-align: center;">暂无其他用户数据</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 新增的KV状态标签 -->
-        <div id="kv-status" class="tab-content">
-            <div class="kv-stats-panel">
-                <div class="card-title">
-                    <span><i class="fas fa-database"></i> KV存储状态</span>
-                    <div>
-                        <button id="refresh-kv-stats" class="secondary">
-                            <i class="fas fa-redo"></i> 刷新状态
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="kv-stats-grid">
-                    <div class="kv-stat-item">
-                        <div class="kv-stat-value" id="kv-total-users">--</div>
-                        <div class="kv-stat-label">总用户数</div>
-                    </div>
-                    
-                    <div class="kv-stat-item">
-                        <div class="kv-stat-value" id="kv-total-keys">--</div>
-                        <div class="kv-stat-label">总Key数</div>
-                    </div>
-                    
-                    <div class="kv-stat-item">
-                        <div class="kv-stat-value" id="kv-total-data">--</div>
-                        <div class="kv-stat-label">总数据条数</div>
-                    </div>
-                    
-                    <div class="kv-stat-item">
-                        <div class="kv-stat-value" id="kv-storage-used">--</div>
-                        <div class="kv-stat-label">存储使用量</div>
-                    </div>
-                </div>
-                
-                <div class="sync-progress-bar" style="margin-top: 1rem;">
-                    <div class="sync-progress-fill" id="kv-storage-progress" style="width: 0%"></div>
-                </div>
-                <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.25rem; text-align: center;">
-                    存储使用率: <span id="kv-storage-percent">0%</span>
-                </p>
-            </div>
-            
-            <div class="card">
-                <div class="card-title">
-                    <span><i class="fas fa-chart-line"></i> KV使用趋势</span>
-                </div>
-                <div class="chart-container">
-                    <canvas id="kvUsageChart"></canvas>
-                </div>
-            </div>
-            
-            <!-- KV管理工具 -->
-            <div class="control-panel">
-                <div class="control-group">
-                    <div class="control-title">
-                        <i class="fas fa-tools"></i> KV管理工具
-                    </div>
-                    <p style="margin-bottom: 1rem; font-size: 0.95rem; color: #6b7280;">
-                        管理和维护KV存储中的数据
-                    </p>
-                    <div class="button-group">
-                        <button id="kv-backup-all" class="success">
-                            <i class="fas fa-download"></i> 备份所有KV数据
-                        </button>
-                        <button id="kv-cleanup-old" class="warning">
-                            <i class="fas fa-broom"></i> 清理旧数据
-                        </button>
-                    </div>
-                    <div class="button-group">
-                        <button id="kv-export-stats" class="secondary">
-                            <i class="fas fa-file-export"></i> 导出KV统计
-                        </button>
-                        <button id="kv-health-check" class="secondary">
-                            <i class="fas fa-heartbeat"></i> 健康检查
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <div class="control-title">
-                        <i class="fas fa-search"></i> 数据搜索
-                    </div>
-                    <div class="form-group">
-                        <label for="kv-search-user">搜索用户数据</label>
-                        <select id="kv-search-user">
-                            <option value="">选择用户ID</option>
-                            <option value="Group_001">Group_001</option>
-                            <option value="Group_002">Group_002</option>
-                            <option value="Group_003">Group_003</option>
-                            <option value="Group_004">Group_004</option>
-                            <option value="Group_005">Group_005</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="kv-search-date">按日期搜索</label>
-                        <input type="date" id="kv-search-date">
-                    </div>
-                    <button id="kv-search" class="success">
-                        <i class="fas fa-search"></i> 搜索数据
-                    </button>
-                </div>
-            </div>
-            
-            <!-- KV数据列表 -->
-            <div class="card">
-                <div class="card-title">
-                    <span><i class="fas fa-list"></i> KV数据列表</span>
-                    <div>
-                        <select id="kv-data-filter" style="width: auto;">
-                            <option value="all">全部数据</option>
-                            <option value="users">用户数据</option>
-                            <option value="configs">配置数据</option>
-                            <option value="history">历史记录</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Key</th>
-                                <th>类型</th>
-                                <th>用户</th>
-                                <th>大小</th>
-                                <th>最后修改</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="kv-data-list">
-                            <tr>
-                                <td colspan="6" style="text-align: center;">加载中...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="button-group" style="margin-top: 1rem;">
-                    <button id="prev-kv-page" class="secondary">
-                        <i class="fas fa-chevron-left"></i> 上一页
-                    </button>
-                    <button id="next-kv-page" class="secondary">
-                        下一页 <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-                <p style="text-align: center; margin-top: 1rem; color: #6b7280;">
-                    显示第 <span id="current-kv-page">1</span> 页，共 <span id="total-kv-pages">1</span> 页
-                </p>
-            </div>
-            
-            <!-- KV性能监控 -->
-            <div class="card">
-                <div class="card-title">
-                    <span><i class="fas fa-tachometer-alt"></i> KV性能监控</span>
-                </div>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-value" id="kv-read-latency">--</div>
-                        <div class="stat-label">读取延迟</div>
+                        <div class="stat-value" id="data-quality">--</div>
+                        <div class="stat-label">数据质量</div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-value" id="kv-write-latency">--</div>
-                        <div class="stat-label">写入延迟</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="kv-success-rate">--</div>
-                        <div class="stat-label">成功率</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="kv-requests">--</div>
-                        <div class="stat-label">请求数/小时</div>
+                        <div class="stat-value" id="sync-frequency-count">0</div>
+                        <div class="stat-label">同步次数</div>
                     </div>
                 </div>
-                <button id="start-kv-monitoring" class="success" style="margin-top: 1rem;">
-                    <i class="fas fa-play"></i> 开始性能监控
-                </button>
             </div>
         </div>
         
         <div class="footer">
-            <p>两岸网络延迟监测工具 v2.0 | 增强数据同步 | KV存储管理 | 多设备支持 | 数据一致性保证</p>
-            <p>前端: GitHub Pages | 后端: Cloudflare Workers + LATENCY_KV | 数据: 本地存储 + 云端KV + 实时同步</p>
-            <p>注意: 使用相同的用户ID在不同设备上可以自动同步数据，支持数据一致性检查和自动冲突解决</p>
+            <p>两岸网络延迟监测工具 v2.0 | 增强数据同步 | 多设备共享 | 数据一致性保证</p>
+            <p>前端: GitHub Pages | 后端: Cloudflare Workers + KV | 数据: 本地存储 + 云端同步</p>
+            <p>注意: 使用相同的共享组在不同设备上可以自动同步数据，支持数据一致性检查和自动冲突解决</p>
         </div>
     </div>
 
@@ -2049,16 +1836,9 @@
             ENDPOINTS: {
                 SAVE: '/api/save',
                 LOAD: '/api/load',
-                TEST: '/api/test',
-                USERS: '/api/users',
-                STATUS: '/api/status',
-                SYNC: '/api/sync',
-                KV_STATS: '/api/kv-stats',
-                KV_SEARCH: '/api/kv-search',
-                SYNC_ALL: '/api/sync-all',
-                GET_USER_DATA: '/api/get-user-data'
+                TEST: '/api/test'
             },
-            USER_ID: null,
+            SHARE_GROUP: null,
             AUTO_SYNC: false,
             LAST_SYNC: null,
             SYNC_SETTINGS: {
@@ -2089,11 +1869,10 @@
                 'tw_stdtime_ntp': { name: '台湾国家标准时间', host: '220.130.158.73', location: 'taiwan', type: 'ping' },
                 'tw_tfn': { name: '台湾固网示例IP', host: '124.8.11.216', location: 'taiwan', type: 'ping' }
             },
-            userId: null,
-            userIdType: 'random',
-            devices: [],
-            lastSyncTime: null,
-            deviceId: null
+            shareGroup: null,
+            shareGroupType: 'default',
+            deviceId: null,
+            lastSyncTime: null
         };
 
         const defaultConfig = JSON.parse(JSON.stringify(config));
@@ -2112,9 +1891,6 @@
             periodChart: null,
             cloudflareConnected: false,
             autoSyncInterval: null,
-            userList: [],
-            mergedData: [],
-            currentUserId: null,
             syncHistory: [],
             syncStatus: {
                 isSyncing: false,
@@ -2128,12 +1904,7 @@
                     conflicts: 0,
                     duration: 0
                 }
-            },
-            kvStats: null,
-            kvChart: null,
-            kvMonitoringActive: false,
-            kvMonitoringInterval: null,
-            realKVData: []
+            }
         };
 
         // ==================== 基础工具函数 ====================
@@ -2283,11 +2054,11 @@
             }
         }
 
-        // ==================== 用户ID管理函数 ====================
+        // ==================== 共享组管理函数 ====================
 
-        function initUserId() {
+        function initShareGroup() {
             try {
-                // 获取或生成设备ID
+                // 生成设备ID
                 let deviceId = localStorage.getItem('latency_monitor_device_id');
                 if (!deviceId) {
                     deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -2295,61 +2066,51 @@
                 }
                 config.deviceId = deviceId;
                 
-                // 获取或生成用户ID
-                let userId = localStorage.getItem('latency_monitor_user_id');
-                let userIdType = localStorage.getItem('latency_monitor_user_id_type') || 'random';
-                let devices = JSON.parse(localStorage.getItem('latency_monitor_devices') || '[]');
+                // 获取或设置共享组
+                let shareGroup = localStorage.getItem('latency_monitor_share_group');
+                let shareGroupType = localStorage.getItem('latency_monitor_share_group_type') || 'default';
                 
-                if (!userId) {
-                    // 默认使用Group_001作为初始用户ID
-                    userId = 'Group_001';
-                    userIdType = 'group';
-                    localStorage.setItem('latency_monitor_user_id', userId);
-                    localStorage.setItem('latency_monitor_user_id_type', userIdType);
+                if (!shareGroup) {
+                    // 默认使用Group_001作为初始共享组
+                    shareGroup = 'Group_001';
+                    shareGroupType = 'group';
+                    localStorage.setItem('latency_monitor_share_group', shareGroup);
+                    localStorage.setItem('latency_monitor_share_group_type', shareGroupType);
                 }
                 
-                // 添加当前设备到设备列表
-                if (!devices.includes(deviceId)) {
-                    devices.push(deviceId);
-                    localStorage.setItem('latency_monitor_devices', JSON.stringify(devices));
-                }
+                config.shareGroup = shareGroup;
+                config.shareGroupType = shareGroupType;
+                CLOUDFLARE_CONFIG.SHARE_GROUP = shareGroup;
                 
-                config.userId = userId;
-                config.userIdType = userIdType;
-                config.devices = devices;
+                updateShareGroupDisplay();
+                renderShareGroupOptions();
                 
-                CLOUDFLARE_CONFIG.USER_ID = userId;
-                
-                updateUserIdDisplay();
-                renderUserIdOptions();
-                renderDeviceList();
-                
-                console.log("用户ID初始化完成:", userId, "设备ID:", deviceId);
-                return userId;
+                console.log("共享组初始化完成:", shareGroup, "设备ID:", deviceId);
+                return shareGroup;
             } catch (error) {
-                console.error("初始化用户ID时出错:", error);
+                console.error("初始化共享组时出错:", error);
                 return null;
             }
         }
 
-        function renderUserIdOptions() {
-            const userIdOptions = [
-                { id: 'Group_001', name: 'Group_001', description: '第一组用户' },
-                { id: 'Group_002', name: 'Group_002', description: '第二组用户' },
-                { id: 'Group_003', name: 'Group_003', description: '第三组用户' },
-                { id: 'Group_004', name: 'Group_004', description: '第四组用户' },
-                { id: 'Group_005', name: 'Group_005', description: '第五组用户' }
+        function renderShareGroupOptions() {
+            const shareGroupOptions = [
+                { id: 'Group_001', name: 'Group_001', description: '第一共享组' },
+                { id: 'Group_002', name: 'Group_002', description: '第二共享组' },
+                { id: 'Group_003', name: 'Group_003', description: '第三共享组' },
+                { id: 'Group_004', name: 'Group_004', description: '第四共享组' },
+                { id: 'Group_005', name: 'Group_005', description: '第五共享组' }
             ];
             
-            // 渲染云端同步标签页的用户ID选项
-            const cloudflareOptionsContainer = document.getElementById('user-id-options');
+            // 渲染云端同步标签页的共享组选项
+            const cloudflareOptionsContainer = document.getElementById('share-group-options');
             if (cloudflareOptionsContainer) {
                 cloudflareOptionsContainer.innerHTML = '';
                 
-                userIdOptions.forEach(option => {
+                shareGroupOptions.forEach(option => {
                     const optionDiv = document.createElement('div');
-                    optionDiv.className = `user-id-option ${config.userId === option.id ? 'selected' : ''}`;
-                    optionDiv.dataset.userId = option.id;
+                    optionDiv.className = `user-id-option ${config.shareGroup === option.id ? 'selected' : ''}`;
+                    optionDiv.dataset.shareGroup = option.id;
                     optionDiv.innerHTML = `
                         <div style="font-weight: 600;">${option.name}</div>
                         <div style="font-size: 0.9rem; color: #6b7280;">${option.description}</div>
@@ -2357,23 +2118,17 @@
                     
                     optionDiv.addEventListener('click', function() {
                         // 移除所有选择状态
-                        document.querySelectorAll('.user-id-option').forEach(el => {
+                        document.querySelectorAll('#share-group-options .user-id-option').forEach(el => {
                             el.classList.remove('selected');
                         });
                         
                         // 添加当前选择状态
                         this.classList.add('selected');
                         
-                        // 更新输入框值
-                        const userIdInput = document.getElementById('cloudflare-user-id');
-                        if (userIdInput) {
-                            userIdInput.value = this.dataset.userId;
-                        }
-                        
-                        // 更新自定义用户ID输入框
-                        const customUserIdInput = document.getElementById('custom-user-id');
-                        if (customUserIdInput) {
-                            customUserIdInput.value = this.dataset.userId;
+                        // 更新共享组显示
+                        const currentShareGroupElement = document.getElementById('current-share-group');
+                        if (currentShareGroupElement) {
+                            currentShareGroupElement.textContent = this.dataset.shareGroup;
                         }
                     });
                     
@@ -2381,15 +2136,15 @@
                 });
             }
             
-            // 渲染用户管理标签页的用户ID选项
+            // 渲染用户管理标签页的共享组选项
             const userManagementOptionsContainer = document.getElementById('user-id-selector-options');
             if (userManagementOptionsContainer) {
                 userManagementOptionsContainer.innerHTML = '';
                 
-                userIdOptions.forEach(option => {
+                shareGroupOptions.forEach(option => {
                     const optionDiv = document.createElement('div');
-                    optionDiv.className = `user-id-option ${config.userId === option.id ? 'selected' : ''}`;
-                    optionDiv.dataset.userId = option.id;
+                    optionDiv.className = `user-id-option ${config.shareGroup === option.id ? 'selected' : ''}`;
+                    optionDiv.dataset.shareGroup = option.id;
                     optionDiv.innerHTML = `
                         <div style="font-weight: 600;">${option.name}</div>
                         <div style="font-size: 0.9rem; color: #6b7280;">${option.description}</div>
@@ -2397,23 +2152,17 @@
                     
                     optionDiv.addEventListener('click', function() {
                         // 移除所有选择状态
-                        document.querySelectorAll('.user-id-option').forEach(el => {
+                        document.querySelectorAll('#user-id-selector-options .user-id-option').forEach(el => {
                             el.classList.remove('selected');
                         });
                         
                         // 添加当前选择状态
                         this.classList.add('selected');
                         
-                        // 更新输入框值
-                        const customUserIdInput = document.getElementById('custom-user-id');
-                        if (customUserIdInput) {
-                            customUserIdInput.value = this.dataset.userId;
-                        }
-                        
-                        // 更新云端同步输入框
-                        const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
-                        if (cloudflareUserIdInput) {
-                            cloudflareUserIdInput.value = this.dataset.userId;
+                        // 更新共享组显示
+                        const currentShareGroupElement = document.getElementById('current-share-group');
+                        if (currentShareGroupElement) {
+                            currentShareGroupElement.textContent = this.dataset.shareGroup;
                         }
                     });
                     
@@ -2421,202 +2170,155 @@
                 });
             }
             
-            // 更新云端同步输入框的值
-            const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
-            if (cloudflareUserIdInput) {
-                cloudflareUserIdInput.value = config.userId || 'Group_001';
-            }
-            
-            // 更新自定义用户ID输入框的值
-            const customUserIdInput = document.getElementById('custom-user-id');
-            if (customUserIdInput) {
-                customUserIdInput.value = config.userId || 'Group_001';
-            }
+            updateShareGroupDisplay();
         }
 
-        function updateUserIdDisplay() {
-            const cloudflareUserIdInput = document.getElementById('cloudflare-user-id');
-            if (cloudflareUserIdInput) {
-                cloudflareUserIdInput.value = config.userId || 'Group_001';
+        function updateShareGroupDisplay() {
+            const currentShareGroupElement = document.getElementById('current-share-group');
+            if (currentShareGroupElement) {
+                currentShareGroupElement.textContent = config.shareGroup || 'Group_001';
             }
             
-            const customUserIdInput = document.getElementById('custom-user-id');
-            if (customUserIdInput) {
-                customUserIdInput.value = config.userId || 'Group_001';
+            const shareGroupTypeElement = document.getElementById('share-group-type');
+            if (shareGroupTypeElement) {
+                shareGroupTypeElement.textContent = config.shareGroupType === 'group' ? '分组' : '随机';
             }
             
-            const currentUserIdElement = document.getElementById('current-user-id');
-            if (currentUserIdElement) {
-                currentUserIdElement.textContent = config.userId || 'Group_001';
-            }
-            
-            const userIdTypeElement = document.getElementById('user-id-type');
-            if (userIdTypeElement) {
-                userIdTypeElement.textContent = config.userIdType === 'group' ? '分组ID' : '随机ID';
-            }
-            
-            const deviceCountElement = document.getElementById('device-count');
-            if (deviceCountElement) {
-                deviceCountElement.textContent = config.devices ? config.devices.length : 1;
+            const dataSharingStatusElement = document.getElementById('data-sharing-status');
+            if (dataSharingStatusElement) {
+                dataSharingStatusElement.textContent = config.shareGroup ? '已启用' : '未启用';
+                dataSharingStatusElement.className = config.shareGroup ? 'latency-good' : 'latency-bad';
             }
             
             const currentUserIdDisplay = document.getElementById('current-user-id-display');
             if (currentUserIdDisplay) {
-                currentUserIdDisplay.textContent = config.userId || 'Group_001';
+                currentUserIdDisplay.textContent = config.shareGroup || 'Group_001';
             }
             
-            // 更新所有下拉选择框
-            const mergeUserIdSelect = document.getElementById('merge-user-id');
-            if (mergeUserIdSelect) {
-                mergeUserIdSelect.value = config.userId || '';
-            }
-            
-            const kvSearchUserSelect = document.getElementById('kv-search-user');
-            if (kvSearchUserSelect) {
-                kvSearchUserSelect.value = config.userId || '';
+            // 更新合并共享组选择框
+            const mergeShareGroupSelect = document.getElementById('merge-share-group');
+            if (mergeShareGroupSelect) {
+                mergeShareGroupSelect.value = config.shareGroup || '';
             }
         }
 
-        function renderDeviceList() {
-            const deviceList = document.getElementById('device-list');
-            if (!deviceList) return;
-            
-            deviceList.innerHTML = '';
-            
-            if (config.devices && config.devices.length > 0) {
-                config.devices.forEach((deviceId, index) => {
-                    const isCurrent = deviceId === config.deviceId;
-                    const deviceCard = document.createElement('div');
-                    deviceCard.className = 'device-card';
-                    deviceCard.innerHTML = `
-                        <div class="device-header">
-                            <div class="device-name">
-                                <i class="fas fa-laptop"></i> 设备 ${index + 1}
-                                ${isCurrent ? '<span style="color: var(--primary-color); margin-left: 8px;">(当前)</span>' : ''}
-                            </div>
-                            <div class="device-status ${isCurrent ? 'online' : 'offline'}">
-                                ${isCurrent ? '在线' : '离线'}
-                            </div>
-                        </div>
-                        <p style="margin: 0.5rem 0; font-size: 0.9rem; color: #6b7280;">ID: ${deviceId}</p>
-                        <p style="margin: 0; font-size: 0.85rem; color: #9ca3af;">最后活动: 刚刚</p>
-                    `;
-                    deviceList.appendChild(deviceCard);
-                });
-            } else {
-                deviceList.innerHTML = '<p style="text-align: center; color: #6b7280;">暂无设备信息</p>';
-            }
-        }
-
-        function setCustomUserId() {
+        function setShareGroup() {
             try {
-                const customUserIdInput = document.getElementById('custom-user-id');
-                const userId = customUserIdInput.value.trim();
+                let selectedShareGroup = null;
                 
-                if (!userId) {
-                    showNotification('请输入用户ID', 'error');
-                    return;
+                // 尝试从云端同步标签页获取选中的共享组
+                const cloudflareSelected = document.querySelector('#share-group-options .user-id-option.selected');
+                if (cloudflareSelected) {
+                    selectedShareGroup = cloudflareSelected.dataset.shareGroup;
                 }
                 
-                // 检查是否是有效的分组ID
+                // 如果没找到，尝试从用户管理标签页获取
+                if (!selectedShareGroup) {
+                    const userManagementSelected = document.querySelector('#user-id-selector-options .user-id-option.selected');
+                    if (userManagementSelected) {
+                        selectedShareGroup = userManagementSelected.dataset.shareGroup;
+                    }
+                }
+                
+                // 如果还没找到，使用当前配置
+                if (!selectedShareGroup) {
+                    selectedShareGroup = config.shareGroup || 'Group_001';
+                }
+                
+                // 检查是否是有效的分组
                 const validGroupIds = ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'];
-                if (!validGroupIds.includes(userId)) {
-                    showNotification('请选择有效的分组ID (Group_001 到 Group_005)', 'warning');
+                if (!validGroupIds.includes(selectedShareGroup)) {
+                    showNotification('请选择有效的共享组 (Group_001 到 Group_005)', 'warning');
                     return;
                 }
                 
-                // 如果用户ID改变，需要重新同步数据
-                const oldUserId = config.userId;
-                config.userId = userId;
-                config.userIdType = 'group';
-                CLOUDFLARE_CONFIG.USER_ID = userId;
+                // 如果共享组改变，需要重新同步数据
+                const oldShareGroup = config.shareGroup;
+                config.shareGroup = selectedShareGroup;
+                config.shareGroupType = 'group';
+                CLOUDFLARE_CONFIG.SHARE_GROUP = selectedShareGroup;
                 
-                localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', 'group');
+                localStorage.setItem('latency_monitor_share_group', selectedShareGroup);
+                localStorage.setItem('latency_monitor_share_group_type', 'group');
                 saveConfig();
                 
-                updateUserIdDisplay();
-                renderUserIdOptions();
+                updateShareGroupDisplay();
+                renderShareGroupOptions();
                 
-                // 如果用户ID改变，自动从云端同步新用户的数据
-                if (oldUserId !== userId) {
-                    showNotification(`用户ID已设置为 ${userId}，正在从云端同步数据...`, 'info');
+                // 如果共享组改变，自动从云端同步新组的数据
+                if (oldShareGroup !== selectedShareGroup) {
+                    showNotification(`共享组已设置为 ${selectedShareGroup}，正在从云端同步数据...`, 'info');
                     setTimeout(() => {
                         syncFromCloud();
                     }, 1000);
                 } else {
-                    showNotification('用户ID已设置', 'success');
+                    showNotification('共享组已设置', 'success');
                 }
             } catch (error) {
-                console.error("设置自定义用户ID时出错:", error);
-                showNotification('设置用户ID失败: ' + error.message, 'error');
+                console.error("设置共享组时出错:", error);
+                showNotification('设置共享组失败: ' + error.message, 'error');
             }
         }
 
-        function generateRandomUserId() {
+        function generateRandomShareGroup() {
             try {
-                const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                const oldUserId = config.userId;
-                config.userId = userId;
-                config.userIdType = 'random';
-                CLOUDFLARE_CONFIG.USER_ID = userId;
+                const shareGroup = 'Random_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                const oldShareGroup = config.shareGroup;
+                config.shareGroup = shareGroup;
+                config.shareGroupType = 'random';
+                CLOUDFLARE_CONFIG.SHARE_GROUP = shareGroup;
                 
-                localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', 'random');
+                localStorage.setItem('latency_monitor_share_group', shareGroup);
+                localStorage.setItem('latency_monitor_share_group_type', 'random');
                 saveConfig();
                 
-                const customUserIdInput = document.getElementById('custom-user-id');
-                if (customUserIdInput) {
-                    customUserIdInput.value = userId;
-                }
+                updateShareGroupDisplay();
+                renderShareGroupOptions();
                 
-                updateUserIdDisplay();
-                renderUserIdOptions();
-                
-                // 如果用户ID改变，自动从云端同步新用户的数据
-                if (oldUserId !== userId) {
-                    showNotification('随机用户ID已生成，正在从云端同步数据...', 'info');
+                // 如果共享组改变，自动从云端同步新组的数据
+                if (oldShareGroup !== shareGroup) {
+                    showNotification('随机共享组已生成，正在从云端同步数据...', 'info');
                     setTimeout(() => {
                         syncFromCloud();
                     }, 1000);
                 } else {
-                    showNotification('随机用户ID已生成', 'success');
+                    showNotification('随机共享组已生成', 'success');
                 }
             } catch (error) {
-                console.error("生成随机用户ID时出错:", error);
-                showNotification('生成用户ID失败: ' + error.message, 'error');
+                console.error("生成随机共享组时出错:", error);
+                showNotification('生成共享组失败: ' + error.message, 'error');
             }
         }
 
-        function resetUserId() {
+        function resetShareGroup() {
             try {
-                if (confirm('确定要重置用户ID吗？这将重置为默认分组ID Group_001。')) {
-                    const oldUserId = config.userId;
-                    config.userId = 'Group_001';
-                    config.userIdType = 'group';
-                    CLOUDFLARE_CONFIG.USER_ID = 'Group_001';
+                if (confirm('确定要重置共享组吗？这将重置为默认共享组 Group_001。')) {
+                    const oldShareGroup = config.shareGroup;
+                    config.shareGroup = 'Group_001';
+                    config.shareGroupType = 'group';
+                    CLOUDFLARE_CONFIG.SHARE_GROUP = 'Group_001';
                     
-                    localStorage.setItem('latency_monitor_user_id', 'Group_001');
-                    localStorage.setItem('latency_monitor_user_id_type', 'group');
+                    localStorage.setItem('latency_monitor_share_group', 'Group_001');
+                    localStorage.setItem('latency_monitor_share_group_type', 'group');
                     saveConfig();
                     
-                    initUserId();
-                    updateUserIdDisplay();
-                    renderUserIdOptions();
+                    initShareGroup();
+                    updateShareGroupDisplay();
+                    renderShareGroupOptions();
                     
-                    // 如果用户ID改变，自动从云端同步新用户的数据
-                    if (oldUserId !== 'Group_001') {
-                        showNotification('用户ID已重置为 Group_001，正在从云端同步数据...', 'info');
+                    // 如果共享组改变，自动从云端同步新组的数据
+                    if (oldShareGroup !== 'Group_001') {
+                        showNotification('共享组已重置为 Group_001，正在从云端同步数据...', 'info');
                         setTimeout(() => {
                             syncFromCloud();
                         }, 1000);
                     } else {
-                        showNotification('用户ID已重置为 Group_001', 'success');
+                        showNotification('共享组已重置为 Group_001', 'success');
                     }
                 }
             } catch (error) {
-                console.error("重置用户ID时出错:", error);
-                showNotification('重置用户ID失败: ' + error.message, 'error');
+                console.error("重置共享组时出错:", error);
+                showNotification('重置共享组失败: ' + error.message, 'error');
             }
         }
 
@@ -2649,8 +2351,8 @@
                 }
                 
                 updateNodeSelectOptions();
-                updateUserIdDisplay();
-                renderUserIdOptions();
+                updateShareGroupDisplay();
+                renderShareGroupOptions();
             } catch (error) {
                 console.error("加载配置时出错:", error);
                 showNotification('加载配置失败，使用默认配置', 'warning');
@@ -2682,7 +2384,7 @@
                     updateDataCounts();
                     renderHistoryTable();
                     updateChart();
-                    updateUserDataStats();
+                    updateDataStats();
                 }
             } catch (error) {
                 console.error("加载历史数据时出错:", error);
@@ -2701,7 +2403,7 @@
                     });
                 }
                 
-                updateUserDataStats();
+                updateDataStats();
             } catch (error) {
                 console.error("保存历史数据时出错:", error);
                 showNotification('保存历史数据失败', 'error');
@@ -2736,9 +2438,45 @@
                 if (testsCountElement) testsCountElement.textContent = todayTests;
                 if (dataPointsElement) dataPointsElement.textContent = state.historyData.length;
                 
-                updateCloudDataStatus();
+                updateSyncDataStatus();
             } catch (error) {
                 console.error("更新数据计数时出错:", error);
+            }
+        }
+
+        function updateDataStats() {
+            try {
+                const totalDataPointsElement = document.getElementById('total-data-points');
+                if (totalDataPointsElement) {
+                    totalDataPointsElement.textContent = state.historyData.length;
+                }
+                
+                if (state.historyData.length > 0) {
+                    const allLatencies = state.historyData.flatMap(item => [item.mainlandLatency, item.taiwanLatency]).filter(l => l !== null);
+                    const avgLatency = Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length);
+                    
+                    const avgLatencyAllElement = document.getElementById('avg-latency-all');
+                    if (avgLatencyAllElement) {
+                        avgLatencyAllElement.textContent = `${avgLatency} ms`;
+                    }
+                    
+                    const dataQualityElement = document.getElementById('data-quality');
+                    if (dataQualityElement) {
+                        const goodLatencies = allLatencies.filter(l => l < 100).length;
+                        const qualityPercent = Math.round((goodLatencies / allLatencies.length) * 100);
+                        dataQualityElement.textContent = `${qualityPercent}%`;
+                        dataQualityElement.className = qualityPercent > 80 ? 'stat-value latency-good' : 
+                                                    qualityPercent > 60 ? 'stat-value latency-medium' : 
+                                                    'stat-value latency-bad';
+                    }
+                }
+                
+                const syncFrequencyElement = document.getElementById('sync-frequency-count');
+                if (syncFrequencyElement) {
+                    syncFrequencyElement.textContent = state.syncHistory.length;
+                }
+            } catch (error) {
+                console.error("更新数据统计时出错:", error);
             }
         }
 
@@ -3081,7 +2819,7 @@
                     version: config.version,
                     timestamp: new Date().toISOString(),
                     userLocation: config.userLocation,
-                    userId: config.userId,
+                    shareGroup: config.shareGroup,
                     history: state.historyData
                 };
                 
@@ -3441,311 +3179,22 @@
             });
         }
 
-        // ==================== 数据一致性检查函数 ====================
-
-        async function checkDataConsistency() {
-            try {
-                showNotification('正在检查数据一致性...', 'info');
-                
-                // 从云端获取真实数据进行检查
-                const cloudHistory = await loadFromCloudflare('history');
-                const cloudConfig = await loadFromCloudflare('config');
-                
-                const localCount = state.historyData.length;
-                const cloudCount = cloudHistory ? cloudHistory.length : 0;
-                
-                // 计算缺失数据
-                const localTimestamps = new Set(state.historyData.map(item => item.timestamp));
-                const cloudTimestamps = cloudHistory ? new Set(cloudHistory.map(item => item.timestamp)) : new Set();
-                
-                let missingInLocal = 0;
-                let missingInCloud = 0;
-                
-                if (cloudHistory) {
-                    cloudHistory.forEach(item => {
-                        if (!localTimestamps.has(item.timestamp)) {
-                            missingInLocal++;
-                        }
-                    });
-                }
-                
-                state.historyData.forEach(item => {
-                    if (!cloudTimestamps.has(item.timestamp)) {
-                        missingInCloud++;
-                    }
-                });
-                
-                const totalMissing = missingInLocal + missingInCloud;
-                const consistencyScore = localCount + cloudCount > 0 ? 
-                    Math.round((localCount + cloudCount - totalMissing) / (localCount + cloudCount) * 100) : 100;
-                
-                const consistencyStatus = document.getElementById('consistency-status');
-                const consistencyDetails = document.getElementById('consistency-details');
-                
-                if (consistencyScore === 100) {
-                    consistencyStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>数据一致性状态: 完美</span>';
-                    consistencyStatus.className = 'consistency-status good';
-                } else if (consistencyScore >= 80) {
-                    consistencyStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>数据一致性状态: 良好</span>';
-                    consistencyStatus.className = 'consistency-status warning';
+        function updateSyncDataStatus() {
+            const localDataElement = document.getElementById('local-data-count');
+            if (localDataElement) {
+                localDataElement.textContent = state.historyData.length + ' 条记录';
+            }
+            
+            const cloudDataElement = document.getElementById('cloud-data-status');
+            if (cloudDataElement) {
+                if (CLOUDFLARE_CONFIG.LAST_SYNC) {
+                    cloudDataElement.textContent = '已同步';
+                    cloudDataElement.className = 'latency-good';
                 } else {
-                    consistencyStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>数据一致性状态: 需要修复</span>';
-                    consistencyStatus.className = 'consistency-status error';
-                }
-                
-                document.getElementById('local-data-total').textContent = localCount;
-                document.getElementById('cloud-data-total').textContent = cloudCount;
-                document.getElementById('missing-data').textContent = totalMissing;
-                document.getElementById('conflict-data').textContent = Math.abs(localCount - cloudCount);
-                document.getElementById('consistency-score').textContent = `${consistencyScore}%`;
-                
-                consistencyDetails.style.display = 'block';
-                
-                showNotification(`数据一致性检查完成，得分: ${consistencyScore}%`, 'success');
-                
-                return { localCount, cloudCount, missingInLocal, missingInCloud, consistencyScore };
-            } catch (error) {
-                console.error('检查数据一致性失败:', error);
-                showNotification('检查数据一致性失败: ' + error.message, 'error');
-                return null;
-            }
-        }
-
-        // ==================== KV状态监控函数 ====================
-
-        async function fetchKVStats() {
-            try {
-                console.log('开始获取KV统计信息');
-                
-                const refreshBtn = document.getElementById('refresh-kv-stats');
-                if (refreshBtn) {
-                    const originalHTML = refreshBtn.innerHTML;
-                    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 刷新中...';
-                    refreshBtn.disabled = true;
-                }
-                
-                // 首先尝试连接Worker
-                const testResponse = await fetch(CLOUDFLARE_CONFIG.WORKER_URL + CLOUDFLARE_CONFIG.ENDPOINTS.TEST, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                
-                if (testResponse.ok) {
-                    state.cloudflareConnected = true;
-                    
-                    // 尝试获取KV统计信息
-                    try {
-                        const response = await fetch(
-                            `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_STATS}`,
-                            {
-                                method: 'GET',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                timeout: 5000
-                            }
-                        );
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            console.log('KV统计信息获取成功:', data);
-                            state.kvStats = data;
-                            updateKVStatsDisplay();
-                            
-                            showNotification('KV状态已刷新', 'success');
-                            return data;
-                        } else {
-                            throw new Error(`HTTP ${response.status}`);
-                        }
-                    } catch (kvError) {
-                        console.warn('获取KV统计失败，使用模拟数据:', kvError);
-                        // 使用更真实的模拟数据
-                        const mockData = {
-                            totalUsers: 5,
-                            totalKeys: 25 + Math.floor(Math.random() * 10),
-                            totalData: state.historyData.length + Math.floor(Math.random() * 100),
-                            storageUsed: Math.round((state.historyData.length * 0.1) + Math.random() * 5),
-                            storageLimit: 1024,
-                            readLatency: 15 + Math.floor(Math.random() * 30),
-                            writeLatency: 25 + Math.floor(Math.random() * 40),
-                            successRate: 95 + Math.floor(Math.random() * 4),
-                            hourlyRequests: 80 + Math.floor(Math.random() * 50)
-                        };
-                        state.kvStats = mockData;
-                        updateKVStatsDisplay();
-                        
-                        showNotification('KV状态已刷新 (模拟数据)', 'info');
-                        return mockData;
-                    }
-                } else {
-                    // Worker连接失败，使用模拟数据
-                    console.log('Worker连接失败，使用模拟KV数据');
-                    const mockData = {
-                        totalUsers: 5,
-                        totalKeys: 25,
-                        totalData: state.historyData.length,
-                        storageUsed: Math.round(state.historyData.length * 0.1),
-                        storageLimit: 1024,
-                        readLatency: 45,
-                        writeLatency: 65,
-                        successRate: 98,
-                        hourlyRequests: 120
-                    };
-                    state.kvStats = mockData;
-                    updateKVStatsDisplay();
-                    
-                    showNotification('KV状态已刷新 (模拟数据)', 'info');
-                    return mockData;
-                }
-            } catch (error) {
-                console.error('获取KV统计失败:', error);
-                // 使用模拟数据
-                const mockData = {
-                    totalUsers: 5,
-                    totalKeys: 25,
-                    totalData: state.historyData.length,
-                    storageUsed: Math.round(state.historyData.length * 0.1),
-                    storageLimit: 1024,
-                    readLatency: 45,
-                    writeLatency: 65,
-                    successRate: 98,
-                    hourlyRequests: 120
-                };
-                state.kvStats = mockData;
-                updateKVStatsDisplay();
-                
-                showNotification('KV状态已刷新 (模拟数据)', 'info');
-                return mockData;
-            } finally {
-                const refreshBtn = document.getElementById('refresh-kv-stats');
-                if (refreshBtn) {
-                    setTimeout(() => {
-                        refreshBtn.innerHTML = '<i class="fas fa-redo"></i> 刷新状态';
-                        refreshBtn.disabled = false;
-                    }, 1000);
+                    cloudDataElement.textContent = '未同步';
+                    cloudDataElement.className = 'latency-medium';
                 }
             }
-        }
-
-        function updateKVStatsDisplay() {
-            if (!state.kvStats) return;
-            
-            const stats = state.kvStats;
-            
-            document.getElementById('kv-total-users').textContent = stats.totalUsers || '--';
-            document.getElementById('kv-total-keys').textContent = stats.totalKeys || '--';
-            document.getElementById('kv-total-data').textContent = stats.totalData ? stats.totalData.toLocaleString() : '--';
-            document.getElementById('kv-storage-used').textContent = stats.storageUsed ? `${stats.storageUsed} MB` : '--';
-            
-            if (stats.storageUsed && stats.storageLimit) {
-                const storagePercent = Math.min(100, (stats.storageUsed / stats.storageLimit) * 100);
-                document.getElementById('kv-storage-progress').style.width = `${storagePercent}%`;
-                document.getElementById('kv-storage-percent').textContent = `${storagePercent.toFixed(1)}%`;
-            }
-            
-            document.getElementById('kv-read-latency').textContent = stats.readLatency ? `${stats.readLatency}ms` : '--';
-            document.getElementById('kv-write-latency').textContent = stats.writeLatency ? `${stats.writeLatency}ms` : '--';
-            document.getElementById('kv-success-rate').textContent = stats.successRate ? `${stats.successRate}%` : '--';
-            document.getElementById('kv-requests').textContent = stats.hourlyRequests ? stats.hourlyRequests.toLocaleString() : '--';
-            
-            updateKVUsageChart();
-        }
-
-        function initKVChart() {
-            try {
-                const ctx = document.getElementById('kvUsageChart');
-                if (!ctx) {
-                    console.warn('找不到kvUsageChart元素');
-                    return;
-                }
-                
-                if (state.kvChart) {
-                    state.kvChart.destroy();
-                }
-                
-                state.kvChart = new Chart(ctx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [
-                            {
-                                label: '存储使用量 (MB)',
-                                data: [],
-                                borderColor: 'rgb(59, 130, 246)',
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                tension: 0.4,
-                                fill: true
-                            },
-                            {
-                                label: '请求数/小时',
-                                data: [],
-                                borderColor: 'rgb(16, 185, 129)',
-                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                tension: 0.4,
-                                fill: true
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            }
-                        },
-                        scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: '时间'
-                                }
-                            },
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: '数值'
-                                },
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-                
-                console.log('KV图表初始化完成');
-            } catch (error) {
-                console.error('初始化KV图表时出错:', error);
-            }
-        }
-
-        function updateKVUsageChart() {
-            if (!state.kvChart || !state.kvStats) return;
-            
-            const now = new Date();
-            const labels = [];
-            const storageData = [];
-            const requestData = [];
-            
-            // 生成7天的数据
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-                labels.push(date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }));
-                
-                const baseStorage = state.kvStats.storageUsed || 50;
-                const baseRequests = state.kvStats.hourlyRequests || 100;
-                
-                // 添加一些随机变化，使图表看起来更真实
-                const dayVariation = 0.8 + (Math.random() * 0.4);
-                storageData.push(Math.round(baseStorage * dayVariation));
-                requestData.push(Math.round(baseRequests * (0.7 + Math.random() * 0.6)));
-            }
-            
-            state.kvChart.data.labels = labels;
-            state.kvChart.data.datasets[0].data = storageData;
-            state.kvChart.data.datasets[1].data = requestData;
-            state.kvChart.update();
         }
 
         // ==================== 同步历史记录函数 ====================
@@ -3770,6 +3219,7 @@
             localStorage.setItem('latency_sync_history', JSON.stringify(state.syncHistory));
             
             renderSyncHistory();
+            updateDataStats();
             
             return syncRecord;
         }
@@ -3917,12 +3367,6 @@
                 if (response.ok) {
                     state.cloudflareConnected = true;
                     
-                    const statusElement = document.getElementById('cloud-connection-status');
-                    if (statusElement) {
-                        statusElement.textContent = '已连接';
-                        statusElement.className = 'latency-good';
-                    }
-                    
                     const cloudStatusElement = document.getElementById('cloud-status');
                     if (cloudStatusElement) {
                         cloudStatusElement.textContent = '已连接';
@@ -3937,12 +3381,6 @@
             } catch (error) {
                 console.error('Cloudflare 连接测试失败:', error);
                 state.cloudflareConnected = false;
-                
-                const statusElement = document.getElementById('cloud-connection-status');
-                if (statusElement) {
-                    statusElement.textContent = '连接失败';
-                    statusElement.className = 'latency-bad';
-                }
                 
                 const cloudStatusElement = document.getElementById('cloud-status');
                 if (cloudStatusElement) {
@@ -3961,12 +3399,12 @@
             }
             
             try {
-                const userId = config.userId || initUserId();
+                const shareGroup = config.shareGroup || initShareGroup();
                 const timestamp = new Date().toISOString();
                 const deviceId = config.deviceId;
                 
                 const payload = {
-                    userId: userId,
+                    shareGroup: shareGroup,
                     deviceId: deviceId,
                     dataType: dataType,
                     data: data,
@@ -4010,10 +3448,10 @@
             }
             
             try {
-                const userId = config.userId || initUserId();
+                const shareGroup = config.shareGroup || initShareGroup();
                 
                 const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?userId=${userId}&dataType=${dataType}`
+                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?shareGroup=${shareGroup}&dataType=${dataType}`
                 );
                 
                 if (!response.ok) {
@@ -4038,13 +3476,13 @@
 
         async function syncToCloud() {
             try {
-                if (!config.userId) {
-                    showNotification('请先设置用户ID', 'error');
+                if (!config.shareGroup) {
+                    showNotification('请先设置共享组', 'error');
                     return false;
                 }
                 
                 showNotification('正在同步数据到云端...', 'info');
-                console.log("同步用户ID:", config.userId);
+                console.log("同步共享组:", config.shareGroup);
                 console.log("历史数据量:", state.historyData.length);
                 
                 // 保存配置
@@ -4058,14 +3496,6 @@
                 // 保存节点配置
                 await saveToCloudflare('nodes', config.nodes);
                 
-                // 保存设备信息
-                const deviceInfo = {
-                    deviceId: config.deviceId,
-                    lastSync: new Date().toISOString(),
-                    userAgent: navigator.userAgent
-                };
-                await saveToCloudflare('device_' + config.deviceId, deviceInfo);
-                
                 showNotification('所有数据已同步到 Cloudflare KV!', 'success');
                 
                 // 记录同步时间
@@ -4074,7 +3504,7 @@
                 saveConfig();
                 updateSyncStatusDisplay();
                 
-                updateCloudDataStatus();
+                updateSyncDataStatus();
                 return true;
             } catch (error) {
                 console.error("同步到云端失败:", error);
@@ -4085,13 +3515,13 @@
 
         async function syncFromCloud() {
             try {
-                if (!config.userId) {
-                    showNotification('请先设置用户ID', 'error');
+                if (!config.shareGroup) {
+                    showNotification('请先设置共享组', 'error');
                     return false;
                 }
                 
                 showNotification('正在从云端同步数据...', 'info');
-                console.log("从云端获取用户ID:", config.userId);
+                console.log("从云端获取共享组:", config.shareGroup);
                 
                 // 1. 同步配置
                 const cloudConfig = await loadFromCloudflare('config');
@@ -4103,11 +3533,11 @@
                         config.nodes = mergedNodes;
                     }
                     
-                    // 保留用户ID和位置设置
-                    const savedUserId = config.userId;
+                    // 保留共享组和位置设置
+                    const savedShareGroup = config.shareGroup;
                     const savedUserLocation = config.userLocation;
                     Object.assign(config, cloudConfig);
-                    config.userId = savedUserId; // 保留当前用户ID
+                    config.shareGroup = savedShareGroup; // 保留当前共享组
                     config.userLocation = savedUserLocation; // 保留当前位置
                     
                     saveConfig();
@@ -4157,7 +3587,7 @@
                                     mergedData.push(cloudItem);
                                     break;
                                 case 'newer':
-                                    // 比较时间戳（实际上时间戳相同）
+                                    // 比较时间戳
                                     const localTime = new Date(localItem.timestamp).getTime();
                                     const cloudTime = new Date(cloudItem.timestamp).getTime();
                                     mergedData.push(localTime >= cloudTime ? localItem : cloudItem);
@@ -4211,7 +3641,7 @@
                 config.lastSyncTime = state.syncStatus.lastSyncTime;
                 saveConfig();
                 updateSyncStatusDisplay();
-                updateCloudDataStatus();
+                updateSyncDataStatus();
                 
                 return true;
             } catch (error) {
@@ -4233,95 +3663,6 @@
             }
         }
 
-        function updateCloudDataStatus() {
-            const localDataElement = document.getElementById('local-data-count');
-            if (localDataElement) {
-                localDataElement.textContent = state.historyData.length + ' 条记录';
-            }
-            
-            const cloudStorageElement = document.getElementById('cloud-storage-info');
-            if (cloudStorageElement) {
-                if (state.cloudflareConnected) {
-                    cloudStorageElement.textContent = '已连接，数据已加密';
-                } else {
-                    cloudStorageElement.textContent = '未连接';
-                }
-            }
-            
-            const cloudDataElement = document.getElementById('cloud-data-status');
-            if (cloudDataElement) {
-                if (CLOUDFLARE_CONFIG.LAST_SYNC) {
-                    cloudDataElement.textContent = '已同步';
-                    cloudDataElement.className = 'latency-good';
-                } else {
-                    cloudDataElement.textContent = '未同步';
-                    cloudDataElement.className = 'latency-medium';
-                }
-            }
-        }
-
-        function saveUserId() {
-            try {
-                const userIdInput = document.getElementById('cloudflare-user-id');
-                const userId = userIdInput.value.trim();
-                
-                if (!userId) {
-                    showNotification('请输入用户ID', 'error');
-                    return;
-                }
-                
-                // 检查是否是有效的分组ID
-                const validGroupIds = ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'];
-                if (!validGroupIds.includes(userId)) {
-                    showNotification('请选择有效的分组ID (Group_001 到 Group_005)', 'warning');
-                    return;
-                }
-                
-                config.userId = userId;
-                config.userIdType = 'group';
-                CLOUDFLARE_CONFIG.USER_ID = userId;
-                
-                localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', 'group');
-                saveConfig();
-                
-                updateUserIdDisplay();
-                renderUserIdOptions();
-                showNotification(`用户ID已设置为 ${userId}，请使用"从云端同步"获取数据`, 'success');
-                
-                // 自动从云端同步数据
-                setTimeout(() => {
-                    syncFromCloud();
-                }, 1500);
-            } catch (error) {
-                console.error("保存用户ID时出错:", error);
-                showNotification('保存用户ID失败: ' + error.message, 'error');
-            }
-        }
-
-        function generateNewUserId() {
-            try {
-                const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                const userIdInput = document.getElementById('cloudflare-user-id');
-                userIdInput.value = userId;
-                
-                config.userId = userId;
-                config.userIdType = 'random';
-                CLOUDFLARE_CONFIG.USER_ID = userId;
-                
-                localStorage.setItem('latency_monitor_user_id', userId);
-                localStorage.setItem('latency_monitor_user_id_type', 'random');
-                saveConfig();
-                
-                updateUserIdDisplay();
-                renderUserIdOptions();
-                showNotification('新用户ID已生成', 'success');
-            } catch (error) {
-                console.error("生成新用户ID时出错:", error);
-                showNotification('生成用户ID失败: ' + error.message, 'error');
-            }
-        }
-
         function backupAllData() {
             try {
                 const backupData = {
@@ -4330,7 +3671,7 @@
                     nodes: config.nodes,
                     timestamp: new Date().toISOString(),
                     version: config.version,
-                    userId: config.userId
+                    shareGroup: config.shareGroup
                 };
                 
                 const jsonData = JSON.stringify(backupData, null, 2);
@@ -4338,7 +3679,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `latency_backup_${config.userId}_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `latency_backup_${config.shareGroup}_${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -4376,10 +3717,10 @@
                                     config.nodes = backupData.nodes;
                                 }
                                 
-                                if (backupData.userId) {
-                                    config.userId = backupData.userId;
-                                    CLOUDFLARE_CONFIG.USER_ID = backupData.userId;
-                                    localStorage.setItem('latency_monitor_user_id', backupData.userId);
+                                if (backupData.shareGroup) {
+                                    config.shareGroup = backupData.shareGroup;
+                                    CLOUDFLARE_CONFIG.SHARE_GROUP = backupData.shareGroup;
+                                    localStorage.setItem('latency_monitor_share_group', backupData.shareGroup);
                                 }
                                 
                                 saveConfig();
@@ -4389,8 +3730,8 @@
                                 renderHistoryTable();
                                 updateChart();
                                 updateDataCounts();
-                                updateUserIdDisplay();
-                                renderUserIdOptions();
+                                updateShareGroupDisplay();
+                                renderShareGroupOptions();
                                 
                                 showNotification('备份已恢复', 'success');
                             }
@@ -4410,57 +3751,40 @@
             }
         }
 
-        // ==================== 用户数据管理函数 ====================
+        // ==================== 数据共享功能函数 ====================
 
-        function updateUserDataStats() {
+        async function mergeShareData() {
             try {
-                document.getElementById('total-data-points').textContent = state.historyData.length;
+                const mergeShareGroupSelect = document.getElementById('merge-share-group');
+                const mergeShareGroup = mergeShareGroupSelect.value.trim();
                 
-                if (state.historyData.length > 0) {
-                    const allLatencies = state.historyData.flatMap(item => [item.mainlandLatency, item.taiwanLatency]).filter(l => l !== null);
-                    const avgLatency = Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length);
-                    document.getElementById('avg-latency-all').textContent = `${avgLatency} ms`;
-                    
-                    const dataCoverage = Math.min(100, Math.round((state.historyData.length / 1000) * 100));
-                    document.getElementById('data-coverage').textContent = `${dataCoverage}%`;
-                }
-            } catch (error) {
-                console.error("更新用户数据统计时出错:", error);
-            }
-        }
-
-        async function mergeUserData() {
-            try {
-                const mergeUserIdSelect = document.getElementById('merge-user-id');
-                const mergeUserId = mergeUserIdSelect.value.trim();
-                
-                if (!mergeUserId) {
-                    showNotification('请选择要合并的用户ID', 'error');
+                if (!mergeShareGroup) {
+                    showNotification('请选择要合并的共享组', 'error');
                     return;
                 }
                 
-                if (mergeUserId === config.userId) {
-                    showNotification('不能合并当前用户的数据', 'warning');
+                if (mergeShareGroup === config.shareGroup) {
+                    showNotification('不能合并当前共享组的数据', 'warning');
                     return;
                 }
                 
-                showNotification(`正在获取用户 ${mergeUserId} 的数据...`, 'info');
+                showNotification(`正在获取共享组 ${mergeShareGroup} 的数据...`, 'info');
                 
-                // 从云端获取其他用户的数据
-                const originalUserId = config.userId;
-                config.userId = mergeUserId;
-                CLOUDFLARE_CONFIG.USER_ID = mergeUserId;
+                // 从云端获取其他共享组的数据
+                const originalShareGroup = config.shareGroup;
+                config.shareGroup = mergeShareGroup;
+                CLOUDFLARE_CONFIG.SHARE_GROUP = mergeShareGroup;
                 
                 try {
-                    const otherUserHistory = await loadFromCloudflare('history');
+                    const otherShareHistory = await loadFromCloudflare('history');
                     
-                    // 恢复当前用户ID
-                    config.userId = originalUserId;
-                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    // 恢复当前共享组
+                    config.shareGroup = originalShareGroup;
+                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
                     
-                    if (otherUserHistory && Array.isArray(otherUserHistory)) {
+                    if (otherShareHistory && Array.isArray(otherShareHistory)) {
                         const existingTimestamps = new Set(state.historyData.map(item => item.timestamp));
-                        const newItems = otherUserHistory.filter(item => !existingTimestamps.has(item.timestamp));
+                        const newItems = otherShareHistory.filter(item => !existingTimestamps.has(item.timestamp));
                         
                         if (newItems.length > 0) {
                             state.historyData.push(...newItems);
@@ -4469,97 +3793,96 @@
                             renderHistoryTable();
                             updateChart();
                             updateDataCounts();
-                            showNotification(`已合并 ${newItems.length} 条来自用户 ${mergeUserId} 的数据`, 'success');
+                            showNotification(`已合并 ${newItems.length} 条来自共享组 ${mergeShareGroup} 的数据`, 'success');
                         } else {
                             showNotification('没有新的数据可以合并', 'info');
                         }
                     } else {
-                        showNotification(`未找到用户 ${mergeUserId} 的数据`, 'warning');
+                        showNotification(`未找到共享组 ${mergeShareGroup} 的数据`, 'warning');
                     }
                 } catch (error) {
-                    // 恢复当前用户ID
-                    config.userId = originalUserId;
-                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    // 恢复当前共享组
+                    config.shareGroup = originalShareGroup;
+                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
                     throw error;
                 }
             } catch (error) {
-                console.error("合并用户数据时出错:", error);
-                showNotification('合并用户数据失败: ' + error.message, 'error');
+                console.error("合并共享组数据时出错:", error);
+                showNotification('合并共享组数据失败: ' + error.message, 'error');
             }
         }
 
-        async function compareUserData() {
+        async function compareShareData() {
             try {
-                const mergeUserIdSelect = document.getElementById('merge-user-id');
-                const compareUserId = mergeUserIdSelect.value.trim();
+                const mergeShareGroupSelect = document.getElementById('merge-share-group');
+                const compareShareGroup = mergeShareGroupSelect.value.trim();
                 
-                if (!compareUserId) {
-                    showNotification('请输入要比较的用户ID', 'error');
+                if (!compareShareGroup) {
+                    showNotification('请输入要比较的共享组', 'error');
                     return;
                 }
                 
-                if (compareUserId === config.userId) {
-                    showNotification('不能比较相同用户的数据', 'warning');
+                if (compareShareGroup === config.shareGroup) {
+                    showNotification('不能比较相同共享组的数据', 'warning');
                     return;
                 }
                 
-                showNotification(`正在获取用户 ${compareUserId} 的数据进行比较...`, 'info');
+                showNotification(`正在获取共享组 ${compareShareGroup} 的数据进行比较...`, 'info');
                 
-                // 从云端获取其他用户的数据
-                const originalUserId = config.userId;
-                config.userId = compareUserId;
-                CLOUDFLARE_CONFIG.USER_ID = compareUserId;
+                // 从云端获取其他共享组的数据
+                const originalShareGroup = config.shareGroup;
+                config.shareGroup = compareShareGroup;
+                CLOUDFLARE_CONFIG.SHARE_GROUP = compareShareGroup;
                 
                 try {
-                    const otherUserHistory = await loadFromCloudflare('history');
+                    const otherShareHistory = await loadFromCloudflare('history');
                     
-                    // 恢复当前用户ID
-                    config.userId = originalUserId;
-                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    // 恢复当前共享组
+                    config.shareGroup = originalShareGroup;
+                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
                     
-                    if (otherUserHistory && Array.isArray(otherUserHistory)) {
+                    if (otherShareHistory && Array.isArray(otherShareHistory)) {
                         const currentAvg = state.historyData.length > 0 ? 
                             Math.round(state.historyData.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / state.historyData.length) : 0;
                         
-                        const compareAvg = otherUserHistory.length > 0 ? 
-                            Math.round(otherUserHistory.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / otherUserHistory.length) : 0;
+                        const compareAvg = otherShareHistory.length > 0 ? 
+                            Math.round(otherShareHistory.reduce((sum, item) => sum + (item.mainlandLatency + item.taiwanLatency) / 2, 0) / otherShareHistory.length) : 0;
                         
                         const comparison = `
-                            用户数据对比结果:
+                            共享组数据对比结果:
                             
-                            当前用户 (${config.userId}):
+                            当前共享组 (${config.shareGroup}):
                             - 数据点数: ${state.historyData.length}
                             - 平均延迟: ${currentAvg} ms
                             
-                            对比用户 (${compareUserId}):
-                            - 数据点数: ${otherUserHistory.length}
+                            对比共享组 (${compareShareGroup}):
+                            - 数据点数: ${otherShareHistory.length}
                             - 平均延迟: ${compareAvg} ms
                             
-                            对比结果: ${currentAvg < compareAvg ? '当前用户网络质量更好' : currentAvg > compareAvg ? '对比用户网络质量更好' : '网络质量相当'}
+                            对比结果: ${currentAvg < compareAvg ? '当前共享组网络质量更好' : currentAvg > compareAvg ? '对比共享组网络质量更好' : '网络质量相当'}
                         `;
                         
                         alert(comparison);
                     } else {
-                        showNotification(`未找到用户 ${compareUserId} 的数据`, 'warning');
+                        showNotification(`未找到共享组 ${compareShareGroup} 的数据`, 'warning');
                     }
                 } catch (error) {
-                    // 恢复当前用户ID
-                    config.userId = originalUserId;
-                    CLOUDFLARE_CONFIG.USER_ID = originalUserId;
+                    // 恢复当前共享组
+                    config.shareGroup = originalShareGroup;
+                    CLOUDFLARE_CONFIG.SHARE_GROUP = originalShareGroup;
                     throw error;
                 }
             } catch (error) {
-                console.error("比较用户数据时出错:", error);
-                showNotification('比较用户数据失败: ' + error.message, 'error');
+                console.error("比较共享组数据时出错:", error);
+                showNotification('比较共享组数据失败: ' + error.message, 'error');
             }
         }
 
-        function exportUserData() {
+        function exportAllData() {
             try {
-                const userData = {
-                    userId: config.userId,
+                const allData = {
+                    shareGroup: config.shareGroup,
                     userLocation: config.userLocation,
-                    devices: config.devices,
                     config: config,
                     history: state.historyData,
                     nodes: config.nodes,
@@ -4567,426 +3890,20 @@
                     version: config.version
                 };
                 
-                const jsonData = JSON.stringify(userData, null, 2);
+                const jsonData = JSON.stringify(allData, null, 2);
                 const blob = new Blob([jsonData], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `latency_user_${config.userId}_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `latency_all_data_${config.shareGroup}_${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                showNotification('用户数据已导出', 'success');
+                showNotification('所有数据已导出', 'success');
             } catch (error) {
-                console.error("导出用户数据时出错:", error);
-                showNotification('导出用户数据失败: ' + error.message, 'error');
-            }
-        }
-
-        // ==================== KV管理函数 ====================
-
-        async function kvBackupAll() {
-            try {
-                showNotification('正在备份KV数据...', 'info');
-                
-                // 获取所有用户数据
-                const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.GET_USER_DATA}?allUsers=true`
-                );
-                
-                if (response.ok) {
-                    const allData = await response.json();
-                    
-                    const jsonData = JSON.stringify(allData, null, 2);
-                    const blob = new Blob([jsonData], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `kv_backup_all_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    showNotification('KV数据备份完成', 'success');
-                } else {
-                    // 模拟备份
-                    const backupData = {
-                        users: ['Group_001', 'Group_002', 'Group_003', 'Group_004', 'Group_005'],
-                        totalKeys: 25,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    const jsonData = JSON.stringify(backupData, null, 2);
-                    const blob = new Blob([jsonData], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `kv_backup_all_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    showNotification('KV数据备份完成 (模拟数据)', 'info');
-                }
-            } catch (error) {
-                console.error("KV备份时出错:", error);
-                showNotification('KV备份失败: ' + error.message, 'error');
-            }
-        }
-
-        function kvCleanupOld() {
-            try {
-                if (confirm('确定要清理旧数据吗？此操作可能会删除30天前的数据。')) {
-                    showNotification('正在清理旧数据...', 'info');
-                    
-                    setTimeout(() => {
-                        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-                        const initialCount = state.historyData.length;
-                        state.historyData = state.historyData.filter(item => new Date(item.timestamp) > thirtyDaysAgo);
-                        
-                        saveHistoryData();
-                        renderHistoryTable();
-                        updateChart();
-                        updateDataCounts();
-                        
-                        const removedCount = initialCount - state.historyData.length;
-                        showNotification(`已清理 ${removedCount} 条旧数据`, 'success');
-                    }, 1500);
-                }
-            } catch (error) {
-                console.error("清理旧数据时出错:", error);
-                showNotification('清理旧数据失败: ' + error.message, 'error');
-            }
-        }
-
-        function kvExportStats() {
-            try {
-                if (!state.kvStats) {
-                    showNotification('请先刷新KV状态', 'warning');
-                    return;
-                }
-                
-                const statsData = state.kvStats;
-                const jsonData = JSON.stringify(statsData, null, 2);
-                const blob = new Blob([jsonData], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `kv_stats_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showNotification('KV统计已导出', 'success');
-            } catch (error) {
-                console.error("导出KV统计时出错:", error);
-                showNotification('导出KV统计失败: ' + error.message, 'error');
-            }
-        }
-
-        async function kvHealthCheck() {
-            try {
-                showNotification('正在进行KV健康检查...', 'info');
-                
-                const stats = await fetchKVStats();
-                
-                if (stats) {
-                    let healthStatus = '健康';
-                    let healthColor = 'var(--secondary-color)';
-                    
-                    if (stats.successRate < 90) {
-                        healthStatus = '警告';
-                        healthColor = 'var(--warning-color)';
-                    }
-                    
-                    if (stats.successRate < 80) {
-                        healthStatus = '危险';
-                        healthColor = 'var(--danger-color)';
-                    }
-                    
-                    const healthReport = `
-                        KV健康检查报告:
-                        
-                        存储使用率: ${stats.storageUsed && stats.storageLimit ? 
-                            `${Math.min(100, (stats.storageUsed / stats.storageLimit) * 100).toFixed(1)}%` : '--'}
-                        读取延迟: ${stats.readLatency || '--'} ms
-                        写入延迟: ${stats.writeLatency || '--'} ms
-                        操作成功率: ${stats.successRate || '--'}%
-                        请求频率: ${stats.hourlyRequests ? stats.hourlyRequests.toLocaleString() : '--'}/小时
-                        
-                        健康状态: ${healthStatus}
-                        
-                        建议: ${stats.successRate < 90 ? '建议检查网络连接和KV配置' : '运行状况良好'}
-                    `;
-                    
-                    alert(healthReport);
-                }
-            } catch (error) {
-                console.error("KV健康检查时出错:", error);
-                showNotification('KV健康检查失败: ' + error.message, 'error');
-            }
-        }
-
-        async function kvSearch() {
-            try {
-                const searchUserSelect = document.getElementById('kv-search-user');
-                const searchUser = searchUserSelect.value.trim();
-                const searchDate = document.getElementById('kv-search-date').value;
-                
-                if (!searchUser && !searchDate) {
-                    showNotification('请输入搜索条件', 'error');
-                    return;
-                }
-                
-                showNotification('正在搜索数据...', 'info');
-                
-                // 调用KV搜索API
-                const params = new URLSearchParams();
-                if (searchUser) params.append('userId', searchUser);
-                if (searchDate) params.append('date', searchDate);
-                
-                const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.KV_SEARCH}?${params.toString()}`
-                );
-                
-                if (response.ok) {
-                    const searchResults = await response.json();
-                    renderKVSearchResults(searchResults);
-                } else {
-                    // 使用模拟数据
-                    const mockResults = [
-                        {
-                            key: `config_${searchUser || config.userId}`,
-                            dataType: 'config',
-                            userId: searchUser || config.userId,
-                            size: 1024,
-                            lastModified: new Date().toISOString()
-                        },
-                        {
-                            key: `history_${searchUser || config.userId}`,
-                            dataType: 'history',
-                            userId: searchUser || config.userId,
-                            size: state.historyData.length * 100,
-                            lastModified: new Date().toISOString()
-                        }
-                    ];
-                    renderKVSearchResults(mockResults);
-                }
-            } catch (error) {
-                console.error("搜索数据时出错:", error);
-                showNotification('搜索数据失败: ' + error.message, 'error');
-            }
-        }
-
-        function renderKVSearchResults(results) {
-            const tbody = document.getElementById('kv-data-list');
-            if (!tbody) return;
-            
-            tbody.innerHTML = '';
-            
-            if (!results || results.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">未找到匹配的数据</td></tr>';
-                return;
-            }
-            
-            results.forEach(item => {
-                const date = new Date(item.lastModified || item.timestamp || Date.now());
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${item.key || '--'}</td>
-                    <td>${item.dataType || '未知'}</td>
-                    <td>${item.userId || '--'}</td>
-                    <td>${item.size ? item.size + ' 字节' : '--'}</td>
-                    <td>${date.toLocaleString('zh-CN')}</td>
-                    <td>
-                        <button class="secondary" onclick="viewKVDataItem('${item.key}', '${item.userId || config.userId}')" style="padding: 4px 8px; font-size: 0.9rem;">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            showNotification(`找到 ${results.length} 条匹配的数据`, 'success');
-        }
-
-        async function viewKVDataItem(key, userId) {
-            try {
-                // 这里需要调用API获取具体数据
-                const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.LOAD}?key=${key}&userId=${userId || config.userId}`
-                );
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    alert(`KV数据详情:\n\n${JSON.stringify(data, null, 2)}`);
-                } else {
-                    // 显示模拟数据
-                    const mockData = {
-                        key: key,
-                        userId: userId || config.userId,
-                        dataType: key.includes('config') ? 'config' : key.includes('history') ? 'history' : 'unknown',
-                        timestamp: new Date().toISOString(),
-                        data: key.includes('config') ? config : key.includes('history') ? state.historyData : { message: '模拟数据' }
-                    };
-                    alert(`KV数据详情 (模拟数据):\n\n${JSON.stringify(mockData, null, 2)}`);
-                }
-            } catch (error) {
-                console.error('查看KV数据时出错:', error);
-                alert('查看数据失败，显示模拟数据');
-                
-                const mockData = {
-                    key: key,
-                    userId: userId || config.userId,
-                    dataType: key.includes('config') ? 'config' : key.includes('history') ? 'history' : 'unknown',
-                    timestamp: new Date().toISOString(),
-                    data: key.includes('config') ? config : key.includes('history') ? state.historyData.slice(0, 5) : { message: '模拟数据' }
-                };
-                alert(`KV数据详情 (模拟数据):\n\n${JSON.stringify(mockData, null, 2)}`);
-            }
-        }
-
-        // ==================== 新增的KV数据列表渲染函数 ====================
-
-        async function renderKVDataList() {
-            try {
-                const tbody = document.getElementById('kv-data-list');
-                if (!tbody) {
-                    console.warn('找不到kv-data-list元素');
-                    return;
-                }
-                
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">正在加载数据...</td></tr>';
-                
-                // 获取当前用户的数据列表
-                const response = await fetch(
-                    `${CLOUDFLARE_CONFIG.WORKER_URL}${CLOUDFLARE_CONFIG.ENDPOINTS.GET_USER_DATA}?userId=${config.userId}`
-                );
-                
-                if (response.ok) {
-                    const userData = await response.json();
-                    state.realKVData = userData.items || [];
-                    
-                    tbody.innerHTML = '';
-                    
-                    if (state.realKVData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">暂无KV数据</td></tr>';
-                        return;
-                    }
-                    
-                    state.realKVData.forEach(item => {
-                        const date = new Date(item.lastModified || Date.now());
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${item.key || '--'}</td>
-                            <td>${item.dataType || '未知'}</td>
-                            <td>${item.userId || config.userId}</td>
-                            <td>${item.size ? item.size + ' 字节' : '--'}</td>
-                            <td>${date.toLocaleString('zh-CN')}</td>
-                            <td>
-                                <button class="secondary" onclick="viewKVDataItem('${item.key}', '${item.userId || config.userId}')" style="padding: 4px 8px; font-size: 0.9rem;">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    // 使用模拟数据
-                    const mockData = [
-                        {
-                            key: `config_${config.userId}`,
-                            dataType: 'config',
-                            userId: config.userId,
-                            size: JSON.stringify(config).length,
-                            lastModified: new Date().toISOString()
-                        },
-                        {
-                            key: `history_${config.userId}`,
-                            dataType: 'history',
-                            userId: config.userId,
-                            size: JSON.stringify(state.historyData).length,
-                            lastModified: new Date().toISOString()
-                        },
-                        {
-                            key: `nodes_${config.userId}`,
-                            dataType: 'nodes',
-                            userId: config.userId,
-                            size: JSON.stringify(config.nodes).length,
-                            lastModified: new Date().toISOString()
-                        },
-                        {
-                            key: `device_${config.deviceId}`,
-                            dataType: 'device',
-                            userId: config.userId,
-                            size: 256,
-                            lastModified: new Date().toISOString()
-                        }
-                    ];
-                    
-                    state.realKVData = mockData;
-                    tbody.innerHTML = '';
-                    
-                    mockData.forEach(item => {
-                        const date = new Date(item.lastModified || Date.now());
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${item.key || '--'}</td>
-                            <td>${item.dataType || '未知'}</td>
-                            <td>${item.userId || config.userId}</td>
-                            <td>${item.size ? item.size + ' 字节' : '--'}</td>
-                            <td>${date.toLocaleString('zh-CN')}</td>
-                            <td>
-                                <button class="secondary" onclick="viewKVDataItem('${item.key}', '${item.userId || config.userId}')" style="padding: 4px 8px; font-size: 0.9rem;">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                    
-                    showNotification('KV数据已加载 (模拟数据)', 'info');
-                }
-            } catch (error) {
-                console.error('渲染KV数据列表时出错:', error);
-                const tbody = document.getElementById('kv-data-list');
-                if (tbody) {
-                    // 显示模拟数据作为备用
-                    const mockData = [
-                        {
-                            key: `config_${config.userId}`,
-                            dataType: 'config',
-                            userId: config.userId,
-                            size: JSON.stringify(config).length,
-                            lastModified: new Date().toISOString()
-                        }
-                    ];
-                    
-                    tbody.innerHTML = '';
-                    
-                    mockData.forEach(item => {
-                        const date = new Date(item.lastModified || Date.now());
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${item.key || '--'}</td>
-                            <td>${item.dataType || '未知'}</td>
-                            <td>${item.userId || config.userId}</td>
-                            <td>${item.size ? item.size + ' 字节' : '--'}</td>
-                            <td>${date.toLocaleString('zh-CN')}</td>
-                            <td>
-                                <button class="secondary" onclick="viewKVDataItem('${item.key}', '${item.userId || config.userId}')" style="padding: 4px 8px; font-size: 0.9rem;">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                    
-                    showNotification('KV数据已加载 (模拟数据)', 'info');
-                }
+                console.error("导出所有数据时出错:", error);
+                showNotification('导出所有数据失败: ' + error.message, 'error');
             }
         }
 
@@ -5012,24 +3929,9 @@
                         tabContent.classList.add('active');
                     }
                     
-                    // 如果切换到KV状态标签页，则自动刷新
-                    if (tabId === 'kv-status') {
-                        console.log('切换到KV状态标签页，自动刷新');
-                        setTimeout(() => {
-                            fetchKVStats();
-                            renderKVDataList();
-                        }, 500);
-                    }
-                    
-                    // 如果切换到用户管理标签页，则刷新设备列表和用户ID选项
-                    if (tabId === 'userid') {
-                        renderDeviceList();
-                        renderUserIdOptions();
-                    }
-                    
-                    // 如果切换到云端同步标签页，则刷新用户ID选项
-                    if (tabId === 'cloudflare') {
-                        renderUserIdOptions();
+                    // 如果切换到用户管理标签页，则刷新共享组选项
+                    if (tabId === 'userid' || tabId === 'cloudflare') {
+                        renderShareGroupOptions();
                     }
                 });
             });
@@ -5151,16 +4053,16 @@
             
             // ==================== Cloudflare 事件监听器 ====================
             
-            // 保存用户ID
-            const saveUserIdBtn = document.getElementById('save-user-id');
-            if (saveUserIdBtn) {
-                saveUserIdBtn.addEventListener('click', saveUserId);
+            // 保存共享组（云端同步标签页）
+            const saveShareGroupBtn = document.getElementById('save-share-group');
+            if (saveShareGroupBtn) {
+                saveShareGroupBtn.addEventListener('click', setShareGroup);
             }
             
-            // 生成新用户ID
-            const generateUserIdBtn = document.getElementById('generate-user-id');
-            if (generateUserIdBtn) {
-                generateUserIdBtn.addEventListener('click', generateNewUserId);
+            // 生成新共享组（云端同步标签页）
+            const generateShareGroupBtn = document.getElementById('generate-share-group');
+            if (generateShareGroupBtn) {
+                generateShareGroupBtn.addEventListener('click', generateRandomShareGroup);
             }
             
             // 同步到云端
@@ -5169,10 +4071,7 @@
                 syncToCloudBtn.addEventListener('click', async () => {
                     const success = await syncToCloud();
                     if (success) {
-                        // 同步后立即检查状态
-                        fetchKVStats();
                         updateSyncStatusDisplay();
-                        renderKVDataList();
                     }
                 });
             }
@@ -5183,10 +4082,7 @@
                 syncFromCloudBtn.addEventListener('click', async () => {
                     const success = await syncFromCloud();
                     if (success) {
-                        // 同步后立即检查状态
-                        fetchKVStats();
                         updateSyncStatusDisplay();
-                        renderKVDataList();
                     }
                 });
             }
@@ -5203,42 +4099,42 @@
                 restoreBackupBtn.addEventListener('click', restoreFromBackup);
             }
             
-            // ==================== 用户ID管理事件监听器 ====================
+            // ==================== 用户管理事件监听器 ====================
             
-            // 设置自定义用户ID
-            const setCustomUserIdBtn = document.getElementById('set-custom-user-id');
-            if (setCustomUserIdBtn) {
-                setCustomUserIdBtn.addEventListener('click', setCustomUserId);
+            // 设置共享组（用户管理标签页）
+            const setShareGroupBtn = document.getElementById('set-share-group');
+            if (setShareGroupBtn) {
+                setShareGroupBtn.addEventListener('click', setShareGroup);
             }
             
-            // 生成随机用户ID
-            const generateRandomUserIdBtn = document.getElementById('generate-random-user-id');
-            if (generateRandomUserIdBtn) {
-                generateRandomUserIdBtn.addEventListener('click', generateRandomUserId);
+            // 生成随机共享组（用户管理标签页）
+            const generateRandomShareGroupBtn = document.getElementById('generate-share-group-random');
+            if (generateRandomShareGroupBtn) {
+                generateRandomShareGroupBtn.addEventListener('click', generateRandomShareGroup);
             }
             
-            // 重置用户ID
-            const resetUserIdBtn = document.getElementById('reset-user-id');
-            if (resetUserIdBtn) {
-                resetUserIdBtn.addEventListener('click', resetUserId);
+            // 重置共享组
+            const resetShareGroupBtn = document.getElementById('reset-share-group');
+            if (resetShareGroupBtn) {
+                resetShareGroupBtn.addEventListener('click', resetShareGroup);
             }
             
-            // 合并用户数据
-            const mergeUserDataBtn = document.getElementById('merge-user-data');
-            if (mergeUserDataBtn) {
-                mergeUserDataBtn.addEventListener('click', mergeUserData);
+            // 合并共享组数据
+            const mergeShareDataBtn = document.getElementById('merge-share-data');
+            if (mergeShareDataBtn) {
+                mergeShareDataBtn.addEventListener('click', mergeShareData);
             }
             
-            // 比较用户数据
-            const compareUserDataBtn = document.getElementById('compare-user-data');
-            if (compareUserDataBtn) {
-                compareUserDataBtn.addEventListener('click', compareUserData);
+            // 比较共享组数据
+            const compareShareDataBtn = document.getElementById('compare-share-data');
+            if (compareShareDataBtn) {
+                compareShareDataBtn.addEventListener('click', compareShareData);
             }
             
-            // 导出用户数据
-            const exportUserDataBtn = document.getElementById('export-user-data');
-            if (exportUserDataBtn) {
-                exportUserDataBtn.addEventListener('click', exportUserData);
+            // 导出所有数据
+            const exportAllDataBtn = document.getElementById('export-all-data');
+            if (exportAllDataBtn) {
+                exportAllDataBtn.addEventListener('click', exportAllData);
             }
             
             // ==================== 新增的事件监听器 ====================
@@ -5287,13 +4183,9 @@
             // 验证数据
             const validateSyncBtn = document.getElementById('validate-sync');
             if (validateSyncBtn) {
-                validateSyncBtn.addEventListener('click', checkDataConsistency);
-            }
-            
-            // 检查一致性
-            const checkConsistencyBtn = document.getElementById('check-consistency');
-            if (checkConsistencyBtn) {
-                checkConsistencyBtn.addEventListener('click', checkDataConsistency);
+                validateSyncBtn.addEventListener('click', () => {
+                    showNotification('数据验证功能开发中', 'info');
+                });
             }
             
             // 保存同步设置
@@ -5319,90 +4211,6 @@
                         renderSyncHistory();
                         showNotification('同步历史已清除', 'success');
                     }
-                });
-            }
-            
-            // 刷新设备列表
-            const refreshDevicesBtn = document.getElementById('refresh-devices');
-            if (refreshDevicesBtn) {
-                refreshDevicesBtn.addEventListener('click', renderDeviceList);
-            }
-            
-            // 添加设备
-            const addDeviceBtn = document.getElementById('add-device');
-            if (addDeviceBtn) {
-                addDeviceBtn.addEventListener('click', () => {
-                    const newDeviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    config.devices.push(newDeviceId);
-                    localStorage.setItem('latency_monitor_devices', JSON.stringify(config.devices));
-                    renderDeviceList();
-                    showNotification('新设备已添加', 'success');
-                });
-            }
-            
-            // 刷新KV状态
-            const refreshKVStatsBtn = document.getElementById('refresh-kv-stats');
-            if (refreshKVStatsBtn) {
-                refreshKVStatsBtn.addEventListener('click', async function() {
-                    console.log('KV刷新按钮被点击');
-                    await fetchKVStats();
-                    await renderKVDataList();
-                });
-            }
-            
-            // 开始KV性能监控
-            const startKVMonitoringBtn = document.getElementById('start-kv-monitoring');
-            if (startKVMonitoringBtn) {
-                startKVMonitoringBtn.addEventListener('click', () => {
-                    if (state.kvMonitoringActive) {
-                        clearInterval(state.kvMonitoringInterval);
-                        state.kvMonitoringActive = false;
-                        startKVMonitoringBtn.innerHTML = '<i class="fas fa-play"></i> 开始性能监控';
-                        showNotification('KV性能监控已停止', 'info');
-                    } else {
-                        state.kvMonitoringActive = true;
-                        startKVMonitoringBtn.innerHTML = '<i class="fas fa-stop"></i> 停止性能监控';
-                        
-                        state.kvMonitoringInterval = setInterval(async () => {
-                            await fetchKVStats();
-                        }, 10000);
-                        
-                        showNotification('KV性能监控已启动', 'success');
-                    }
-                });
-            }
-            
-            // KV管理工具
-            const kvBackupAllBtn = document.getElementById('kv-backup-all');
-            if (kvBackupAllBtn) {
-                kvBackupAllBtn.addEventListener('click', kvBackupAll);
-            }
-            
-            const kvCleanupOldBtn = document.getElementById('kv-cleanup-old');
-            if (kvCleanupOldBtn) {
-                kvCleanupOldBtn.addEventListener('click', kvCleanupOld);
-            }
-            
-            const kvExportStatsBtn = document.getElementById('kv-export-stats');
-            if (kvExportStatsBtn) {
-                kvExportStatsBtn.addEventListener('click', kvExportStats);
-            }
-            
-            const kvHealthCheckBtn = document.getElementById('kv-health-check');
-            if (kvHealthCheckBtn) {
-                kvHealthCheckBtn.addEventListener('click', kvHealthCheck);
-            }
-            
-            const kvSearchBtn = document.getElementById('kv-search');
-            if (kvSearchBtn) {
-                kvSearchBtn.addEventListener('click', kvSearch);
-            }
-            
-            // KV数据过滤
-            const kvDataFilter = document.getElementById('kv-data-filter');
-            if (kvDataFilter) {
-                kvDataFilter.addEventListener('change', function() {
-                    renderKVDataList();
                 });
             }
             
@@ -5968,8 +4776,8 @@
         function initApp() {
             console.log("执行initApp函数");
             
-            // 初始化用户ID
-            initUserId();
+            // 初始化共享组
+            initShareGroup();
             
             // 加载配置和历史数据
             loadConfig();
@@ -6009,7 +4817,6 @@
             
             // 初始化图表
             initCharts();
-            initKVChart();
             
             // 初始化节点列表和下拉选项
             updateNodeSelectOptions();
@@ -6034,10 +4841,8 @@
             setTimeout(() => {
                 testCloudflareConnection().then(connected => {
                     if (connected) {
-                        fetchKVStats();
-                        
-                        // 如果启用了自动同步，并且有用户ID，自动同步一次
-                        if (CLOUDFLARE_CONFIG.AUTO_SYNC && config.userId) {
+                        // 如果启用了自动同步，并且有共享组，自动同步一次
+                        if (CLOUDFLARE_CONFIG.AUTO_SYNC && config.shareGroup) {
                             setTimeout(() => {
                                 performFullSync().catch(console.error);
                             }, 3000);
@@ -6046,8 +4851,8 @@
                 });
             }, 2000);
             
-            // 重要提示：使用分组ID共享数据
-            showNotification(`应用已初始化完成，当前用户ID: ${config.userId}。选择相同的Group_ID可以在不同设备间共享数据`, 'info');
+            // 重要提示：使用共享组共享数据
+            showNotification(`应用已初始化完成，当前共享组: ${config.shareGroup}。在所有设备上选择相同的共享组可以自动同步数据`, 'info');
             
             console.log("所有初始化步骤完成");
         }
@@ -6068,4 +4873,3 @@
     </script>
 </body>
 </html>
-                            
