@@ -3513,93 +3513,185 @@
             }
         }
 
-        async function syncFromCloud() {
-            try {
-                if (!config.shareGroup) {
-                    showNotification('请先设置共享组', 'error');
-                    return false;
+/**
+ * 从云端同步数据（增强修复版）
+ * 修复了去重逻辑错误，确保能完整合并本地与云端数据
+ */
+async function syncFromCloud() {
+    console.group('【开始从云端同步数据】');
+    
+    try {
+        // 1. 检查共享组
+        if (!config.shareGroup) {
+            showNotification('请先设置共享组', 'error');
+            console.warn('同步中止：未设置共享组');
+            return false;
+        }
+
+        console.log(`目标共享组: ${config.shareGroup}, 设备ID: ${config.deviceId}`);
+
+        // 2. 从云端获取数据
+        showNotification('正在从云端获取数据...', 'info');
+        
+        let cloudHistory = null;
+        let cloudConfig = null;
+        let cloudNodes = null;
+
+        // 2.1 获取历史数据（这是核心）
+        try {
+            const historyResult = await loadFromCloudflare('history');
+            cloudHistory = historyResult;
+            console.log(`✓ 云端历史数据获取成功，条数: ${cloudHistory ? cloudHistory.length : 0}`);
+        } catch (historyError) {
+            console.error('获取云端历史数据失败:', historyError);
+            // 不立即退出，尝试获取其他数据
+        }
+
+        // 2.2 获取配置数据
+        try {
+            cloudConfig = await loadFromCloudflare('config');
+            console.log('✓ 云端配置数据获取成功');
+        } catch (configError) {
+            console.warn('获取云端配置失败:', configError);
+        }
+
+        // 2.3 获取节点数据
+        try {
+            cloudNodes = await loadFromCloudflare('nodes');
+            console.log('✓ 云端节点数据获取成功');
+        } catch (nodesError) {
+            console.warn('获取云端节点失败:', nodesError);
+        }
+
+        // 3. 核心：合并历史数据
+        if (cloudHistory && Array.isArray(cloudHistory) && cloudHistory.length > 0) {
+            console.log(`【数据合并阶段】本地: ${state.historyData.length} 条, 云端: ${cloudHistory.length} 条`);
+            
+            // 3.1 创建复合键，确保记录唯一性（比单纯时间戳更可靠）
+            const createUniqueKey = (item) => {
+                // 使用时间戳、节点、延迟值共同生成唯一键
+                return `${item.timestamp}_${item.mainlandNode}_${item.taiwanNode}_${item.mainlandLatency}_${item.taiwanLatency}`;
+            };
+
+            // 3.2 建立本地数据映射
+            const localMap = new Map();
+            state.historyData.forEach(item => {
+                localMap.set(createUniqueKey(item), item);
+            });
+
+            // 3.3 建立云端数据映射
+            const cloudMap = new Map();
+            cloudHistory.forEach(item => {
+                cloudMap.set(createUniqueKey(item), item);
+            });
+
+            // 3.4 合并策略：优先保留云端数据，只添加本地独有的数据
+            const mergedMap = new Map([...cloudMap]); // 先放入所有云端数据
+            
+            // 添加本地有而云端没有的数据
+            localMap.forEach((item, key) => {
+                if (!cloudMap.has(key)) {
+                    mergedMap.set(key, item);
                 }
-                
-                showNotification('正在从云端同步数据...', 'info');
-                console.log("从云端获取共享组:", config.shareGroup);
-                
-                // 1. 同步配置
-                const cloudConfig = await loadFromCloudflare('config');
-                if (cloudConfig) {
-                    console.log("获取到云端配置");
-                    // 合并节点配置，保留本地自定义节点
-                    if (cloudConfig.nodes) {
-                        const mergedNodes = { ...cloudConfig.nodes, ...config.nodes };
-                        config.nodes = mergedNodes;
-                    }
-                    
-                    // 保留共享组和位置设置
-                    const savedShareGroup = config.shareGroup;
-                    const savedUserLocation = config.userLocation;
-                    Object.assign(config, cloudConfig);
-                    config.shareGroup = savedShareGroup; // 保留当前共享组
-                    config.userLocation = savedUserLocation; // 保留当前位置
-                    
-                    saveConfig();
-                    showNotification('配置已从云端同步', 'success');
-                }
-                
-                // 2. 同步历史数据
-                const cloudHistory = await loadFromCloudflare('history');
-                if (cloudHistory && Array.isArray(cloudHistory)) {
-    console.log("【数据合并】开始。本地数据量:", state.historyData.length, "，云端数据量:", cloudHistory.length);
+            });
 
-    // 1. 将云端数据放在合并数组的后面，使其在去重时具有更高优先级
-    const allData = [...state.historyData, ...cloudHistory];
+            console.log(`合并去重统计: 本地独有 ${state.historyData.length - cloudHistory.length} 条`);
+            console.log(`最终合并数量: ${mergedMap.size} 条 (云端:${cloudMap.size}, 本地新增:${mergedMap.size - cloudMap.size})`);
 
-    // 2. 使用“时间戳+节点”的复合键创建Map去重，确保唯一性
-    const mergeMap = new Map();
-    allData.forEach(item => {
-        // 创建比单纯时间戳更唯一的键，防止误删
-        const uniqueKey = `${item.timestamp}_${item.mainlandNode || ''}_${item.taiwanNode || ''}`;
-        mergeMap.set(uniqueKey, item); // 后出现的（即云端数据）会覆盖先出现的
-    });
+            // 3.5 转换回数组并排序
+            const mergedArray = Array.from(mergedMap.values());
+            mergedArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            // 3.6 更新本地状态
+            const oldCount = state.historyData.length;
+            state.historyData = mergedArray;
+            
+            // 保存到本地存储
+            saveHistoryData();
+            
+            console.log(`✓ 历史数据合并完成: ${oldCount} -> ${state.historyData.length} 条`);
+            
+            if (state.historyData.length > oldCount) {
+                showNotification(`历史数据已更新，新增 ${state.historyData.length - oldCount} 条记录`, 'success');
+            } else if (state.historyData.length < oldCount) {
+                showNotification(`历史数据已更新，当前共 ${state.historyData.length} 条记录`, 'success');
+            } else {
+                showNotification('数据已是最新，无需更新', 'info');
+            }
+        } else {
+            console.log('云端无历史数据，跳过合并');
+            showNotification('云端暂无历史数据', 'info');
+        }
 
-    // 3. 将Map转回数组并按时排序，直接赋值给 state.historyData
-    state.historyData = Array.from(mergeMap.values());
-    state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        // 4. 合并配置数据（智能合并，不覆盖重要设置）
+        if (cloudConfig) {
+            console.log('【合并配置数据】');
+            
+            // 保留当前共享组和设备ID
+            const currentShareGroup = config.shareGroup;
+            const currentDeviceId = config.deviceId;
+            const currentUserLocation = config.userLocation;
+            
+            // 智能合并：以云端配置为基础，但保留本地的关键设置
+            const mergedConfig = {
+                ...cloudConfig,           // 云端配置优先
+                shareGroup: currentShareGroup, // 但保留当前共享组
+                deviceId: currentDeviceId,     // 保留当前设备ID
+                userLocation: currentUserLocation || cloudConfig.userLocation, // 优先本地位置
+            };
+            
+            // 合并节点配置（云端基础+本地自定义）
+            if (cloudConfig.nodes && config.nodes) {
+                mergedConfig.nodes = { ...cloudConfig.nodes, ...config.nodes };
+            }
+            
+            Object.assign(config, mergedConfig);
+            saveConfig();
+            console.log('✓ 配置数据合并完成');
+        }
 
-    console.log("【数据合并】完成。合并后总数据量:", state.historyData.length);
-    saveHistoryData(); // 保存到本地存储
-    showNotification(`数据同步完成，当前共 ${state.historyData.length} 条记录`, 'success');
+        // 5. 合并节点数据
+        if (cloudNodes) {
+            console.log('【合并节点数据】');
+            config.nodes = { ...cloudNodes, ...config.nodes }; // 云端基础+本地自定义
+            saveConfig();
+            updateNodeSelectOptions();
+            renderNodesList();
+            console.log('✓ 节点数据合并完成');
+        }
 
-} else {
-    console.log("云端无有效历史数据，跳过合并。");
-    showNotification('云端没有历史数据', 'info');
+        // 6. 更新UI和状态
+        console.log('【更新界面】');
+        renderHistoryTable();
+        updateChart();
+        updateDataCounts();
+        updateDataStats();
+        
+        // 更新同步状态
+        state.syncStatus.lastSyncTime = new Date().toISOString();
+        config.lastSyncTime = state.syncStatus.lastSyncTime;
+        saveConfig();
+        
+        // 记录同步历史
+        addSyncHistory('从云端同步', 'success', state.historyData.length, 0);
+        
+        console.log(`✓ 同步流程全部完成，最终数据量: ${state.historyData.length} 条`);
+        console.groupEnd();
+        
+        return true;
+
+    } catch (error) {
+        console.error('同步过程中发生致命错误:', error);
+        console.groupEnd();
+        
+        showNotification(`同步失败: ${error.message}`, 'error');
+        
+        // 记录失败历史
+        addSyncHistory('从云端同步', 'error', 0, 0, error.message);
+        
+        return false;
+    }
 }
-					
-					// =====【开始：替换此部分代码】=====
-	if (cloudHistory && Array.isArray(cloudHistory) && cloudHistory.length > 0) {
-    console.log("【数据合并】开始。本地数据量:", state.historyData.length, "，云端数据量:", cloudHistory.length);
-
-    // 1. 将云端数据放在合并数组的后面，使其在去重时具有更高优先级
-    const allData = [...state.historyData, ...cloudHistory];
-
-    // 2. 使用“时间戳+节点”的复合键创建Map去重，确保唯一性
-    const mergeMap = new Map();
-    allData.forEach(item => {
-        // 创建比单纯时间戳更唯一的键，防止误删
-        const uniqueKey = `${item.timestamp}_${item.mainlandNode || ''}_${item.taiwanNode || ''}`;
-        mergeMap.set(uniqueKey, item); // 后出现的（即云端数据）会覆盖先出现的
-    });
-
-    // 3. 将Map转回数组并按时排序
-    state.historyData = Array.from(mergeMap.values());
-    state.historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-    console.log("【数据合并】完成。合并后总数据量:", state.historyData.length);
-    saveHistoryData(); // 保存到本地存储
-    showNotification(`数据同步完成，当前共 ${state.historyData.length} 条记录`, 'success');
-
-} else {
-    console.log("云端无有效历史数据，跳过合并。");
-}
-// =====【结束：替换此部分代码】=====
                     
                  
                     
