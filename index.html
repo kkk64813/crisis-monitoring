@@ -3631,7 +3631,7 @@
             }
         }
 
-        // ==================== Cloudflare 相关函数 ====================
+        // ==================== Cloudflare 相关函数 - 修正版 ====================
 
         async function testCloudflareConnection() {
             try {
@@ -3693,6 +3693,11 @@
                     dataVersion: config.dataVersion
                 };
                 
+                // 关键修正：历史数据使用合并策略
+                if (dataType === 'history') {
+                    payload.mergeStrategy = 'merge';
+                }
+                
                 console.log('保存到 Cloudflare KV:', dataType, payload);
                 
                 const response = await fetch(CLOUDFLARE_CONFIG.WORKER_URL + CLOUDFLARE_CONFIG.ENDPOINTS.SAVE, {
@@ -3745,21 +3750,18 @@
                 const result = await response.json();
                 console.log(`从 Cloudflare KV 加载数据: ${dataType}`, result);
                 
-                // 关键修正：Worker 返回的数据结构是 {success: true, data: {data: [...], ...}}
-                // 我们需要从 result.data.data 获取实际数据
-                let actualData = null;
+                // 修正：直接返回 result.data，因为Worker已经修正了返回结构
+                let actualData = result.data;
                 
-                if (result.data && result.data.data !== undefined) {
-                    actualData = result.data.data;
-                    console.log(`成功获取 ${dataType} 数据:`, actualData ? (Array.isArray(actualData) ? `数组，长度: ${actualData.length}` : '对象') : 'null');
-                } else if (result.data !== undefined) {
-                    // 如果 result.data 已经是实际数据（兼容旧版）
-                    actualData = result.data;
-                    console.log(`使用兼容模式获取 ${dataType} 数据:`, actualData ? (Array.isArray(actualData) ? `数组，长度: ${actualData.length}` : '对象') : 'null');
+                if (actualData === undefined || actualData === null) {
+                    console.warn(`未找到 ${dataType} 类型的数据，可能为空`);
+                    return null;
                 }
                 
-                if (actualData === null) {
-                    console.warn(`未找到 ${dataType} 类型的数据，可能为空`);
+                // 如果是历史数据，确保是数组
+                if (dataType === 'history' && !Array.isArray(actualData)) {
+                    console.warn(`历史数据不是数组格式，转换为数组`);
+                    actualData = [];
                 }
                 
                 CLOUDFLARE_CONFIG.LAST_SYNC = new Date().toISOString();
